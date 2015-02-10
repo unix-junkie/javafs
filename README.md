@@ -1,3 +1,7 @@
+JavaFS
+======
+[![Build Status](https://api.travis-ci.org/unix-junkie/javafs.png?branch=master)](https://travis-ci.org/unix-junkie/javafs)
+
 If filesystem is 1M large or even larger, 2 bytes per inode will be used to
 store the inode address. For testing purposes, it is conveninent to have
 only 1 address byte per inode (255 inodes maximum). Specify the size of
