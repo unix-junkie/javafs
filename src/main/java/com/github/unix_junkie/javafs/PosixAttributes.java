@@ -3,6 +3,7 @@
  */
 package com.github.unix_junkie.javafs;
 
+import static java.lang.String.format;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.Files.isSymbolicLink;
 import static java.nio.file.Files.readAttributes;
@@ -11,9 +12,7 @@ import static java.util.logging.Level.WARNING;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFileAttributes;
-import java.nio.file.attribute.PosixFilePermission;
-import java.util.Set;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -85,27 +84,22 @@ public final class PosixAttributes {
 	 * @param path the path whose POSIX attributes should be read.
 	 * @return the {@code int} value with at most 12 lowest bits set,
 	 *         representing POSIX attributes of a {@code path}.
-	 * @todo Rewrite using "unix:mode" attribute (Integer).
 	 */
 	private static int extractValue(final Path path) {
 		try {
-			final Set<PosixFilePermission> permissions = readAttributes(path, PosixFileAttributes.class, NOFOLLOW_LINKS).permissions();
-			int posixAttributes = 0;
-			final PosixFilePermission[] values = PosixFilePermission.values();
-			for (final PosixFilePermission permission : values) {
-				if (permissions.contains(permission)) {
-					posixAttributes |= 1 << values.length - permission.ordinal() - 1;
-				}
+			final Map<String, Object> attributes = readAttributes(path, "unix:mode", NOFOLLOW_LINKS);
+			if (attributes.isEmpty()) {
+				LOGGER.info(format("unix:mode is unavailable for %s", path));
+				return defaultValue(path);
 			}
-			return posixAttributes;
-		} catch (final UnsupportedOperationException uoe) {
-			/*
-			 * Windows.
-			 */
-			return isDirectory(path, NOFOLLOW_LINKS) ? 0755 : 0744;
+			return ((Integer) attributes.get("mode")).intValue();
 		} catch (final IOException ioe) {
 			LOGGER.log(WARNING, "", ioe);
-			return isSymbolicLink(path) ? 0777 : isDirectory(path, NOFOLLOW_LINKS) ? 0755 : 0744;
+			return defaultValue(path);
 		}
+	}
+
+	private static int defaultValue(final Path path) {
+		return isSymbolicLink(path) ? 0777 : isDirectory(path, NOFOLLOW_LINKS) ? 0755 : 0744;
 	}
 }
