@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -124,7 +125,8 @@ public final class FileSystemEntry {
 		}
 		this.type = getType(source);
 		this.attributes = getPosixAttributes(source);
-		this.numberOfLinks = 1;
+		final Map<String, Object> nlinks = readAttributes(source, "unix:nlinks", NOFOLLOW_LINKS);
+		this.numberOfLinks = nlinks.isEmpty() ? 1 : ((Integer) nlinks.get("nlinks")).byteValue();
 		this.uid = getUid(source);
 		this.gid = getGid(source);
 		/*
