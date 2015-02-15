@@ -5,9 +5,13 @@ package com.github.unix_junkie.javafs;
 
 import static com.github.unix_junkie.javafs.BlockSize.guessBlockSize;
 import static com.github.unix_junkie.javafs.FileSystem.getBlockAddressSize;
+import static com.github.unix_junkie.javafs.FileUtilities.symbolicLinksSupported;
 import static java.lang.System.getProperty;
 import static java.nio.file.FileVisitResult.CONTINUE;
+import static java.nio.file.Files.createSymbolicLink;
+import static java.nio.file.Files.createTempDirectory;
 import static java.nio.file.Files.createTempFile;
+import static java.nio.file.Files.delete;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.isRegularFile;
 import static java.nio.file.Files.isSymbolicLink;
@@ -17,6 +21,7 @@ import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.Paths.get;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -297,18 +302,81 @@ public final class FileSystemTest {
 
 	@Test
 	@SuppressWarnings("static-method")
-	public void testSymlinkSupport() throws IOException {
-		@Nonnull
-		@SuppressWarnings("null")
-		final Path source = get(getProperty("user.home"), ".Xdefaults");
-		assumeTrue(exists(source, NOFOLLOW_LINKS));
-		assumeTrue(isSymbolicLink(source));
+	public void testFileSymlinkSupport() throws IOException {
+		assumeTrue(symbolicLinksSupported());
 
 		@Nonnull
 		@SuppressWarnings("null")
-		final Path p = createTempFile(null, ".javafs");
-		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-			fs.getRoot().addChild(new FileSystemEntry(source));
+		final Path tempFile = createTempFile(null, null);
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path link = get(tempFile.getParent().toString(), tempFile.getFileName() + ".lnk");
+		try {
+			assertTrue(exists(tempFile));
+			assertFalse(exists(link));
+			assertFalse(exists(link, NOFOLLOW_LINKS));
+
+			createSymbolicLink(link, tempFile);
+			assertTrue(isSymbolicLink(link));
+
+			assertTrue(exists(tempFile));
+			assertTrue(exists(link));
+			assertTrue(exists(link, NOFOLLOW_LINKS));
+
+			delete(tempFile);
+
+			assertFalse(exists(tempFile));
+			assertFalse(exists(link));
+			assertTrue(exists(link, NOFOLLOW_LINKS));
+
+			@Nonnull
+			@SuppressWarnings("null")
+			final Path p = createTempFile(null, ".javafs");
+			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
+				fs.getRoot().addChild(new FileSystemEntry(link));
+			}
+		} finally {
+			delete(link);
+		}
+	}
+
+	@Test
+	@SuppressWarnings("static-method")
+	public void testDirectorySymlinkSupport() throws IOException {
+		assumeTrue(symbolicLinksSupported());
+
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path tempDir = createTempDirectory(null);
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path link = get(tempDir.getParent().toString(), tempDir.getFileName() + ".lnk");
+		try {
+			assertTrue(exists(tempDir));
+			assertFalse(exists(link));
+			assertFalse(exists(link, NOFOLLOW_LINKS));
+
+			createSymbolicLink(link, tempDir);
+			assertTrue(isSymbolicLink(link));
+
+			assertTrue(exists(tempDir));
+			assertTrue(exists(link));
+			assertTrue(exists(link, NOFOLLOW_LINKS));
+
+			delete(tempDir);
+
+			assertFalse(exists(tempDir));
+			assertFalse(exists(link));
+			assertTrue(exists(link, NOFOLLOW_LINKS));
+
+			@Nonnull
+			@SuppressWarnings("null")
+			final Path p = createTempFile(null, ".javafs");
+			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
+				fs.getRoot().addChild(new FileSystemEntry(link));
+			}
+		} finally {
+			delete(link);
 		}
 	}
 
