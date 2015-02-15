@@ -39,6 +39,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.LogManager;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -129,6 +132,8 @@ public final class FileSystemTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void testAddDirectory() throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
 			final FileSystemEntry root = fs.getRoot();
@@ -171,6 +176,8 @@ public final class FileSystemTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void testAddReadFile() throws IOException, NoSuchAlgorithmException {
+		@Nonnull
+		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
 			final Map<String, String> sha1sums = new LinkedHashMap<>();
@@ -178,14 +185,24 @@ public final class FileSystemTest {
 			final MessageDigest md = MessageDigest.getInstance("SHA1");
 			walkFileTree(get(getProperty("user.dir", ".")), new SimpleFileVisitor<Path>() {
 				@Override
-				public FileVisitResult visitFile(final Path file,
-						final BasicFileAttributes attrs)
+				public FileVisitResult visitFile(@Nullable final Path file,
+						@Nullable final BasicFileAttributes attrs)
 				throws IOException {
+					/*
+					 * Useless but required for Eclipse null analysis.
+					 */
+					if (file == null) {
+						return CONTINUE;
+					}
+
 					final String fileName = file.getFileName().toString();
 					if (isRegularFile(file, NOFOLLOW_LINKS) && fileName.endsWith(".java")) {
 						md.reset();
 						md.update(readAllBytes(file));
-						final String sha1sum = toHexString(md.digest());
+						@Nonnull
+						@SuppressWarnings("null")
+						final byte[] digest = md.digest();
+						final String sha1sum = toHexString(digest);
 						System.out.println(sha1sum + ' ' + fileName);
 						sha1sums.put(fileName, sha1sum);
 						fs.getRoot().addChild(new FileSystemEntry(file));
@@ -202,12 +219,17 @@ public final class FileSystemTest {
 
 			for (final FileSystemEntry child : children) {
 				System.out.println(child);
+				@Nonnull
+				@SuppressWarnings("null")
 				final ByteBuffer contents = ByteBuffer.allocate((int) child.getSize());
 				child.writeDataTo(contents);
 				contents.flip();
 				md.reset();
 				md.update(contents);
-				final String sha1sum = toHexString(md.digest());
+				@Nonnull
+				@SuppressWarnings("null")
+				final byte digest[] = md.digest();
+				final String sha1sum = toHexString(digest);
 				assertEquals(sha1sums.get(child.getName()), sha1sum);
 			}
 		}
@@ -216,13 +238,22 @@ public final class FileSystemTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void testUnlinkFile() throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
 			walkFileTree(get(getProperty("user.dir", ".")), new SimpleFileVisitor<Path>() {
 				@Override
-				public FileVisitResult visitFile(final Path file,
-						final BasicFileAttributes attrs)
+				public FileVisitResult visitFile(@Nullable final Path file,
+						@Nullable final BasicFileAttributes attrs)
 				throws IOException {
+					/*
+					 * Useless but required for Eclipse null analysis.
+					 */
+					if (file == null) {
+						return CONTINUE;
+					}
+
 					final String fileName = file.getFileName().toString();
 					if (isRegularFile(file, NOFOLLOW_LINKS) && fileName.endsWith(".java")) {
 						fs.getRoot().addChild(new FileSystemEntry(file));
@@ -267,10 +298,14 @@ public final class FileSystemTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void testSymlinkSupport() throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
 		final Path source = get(getProperty("user.home"), ".Xdefaults");
 		assumeTrue(exists(source, NOFOLLOW_LINKS));
 		assumeTrue(isSymbolicLink(source));
 
+		@Nonnull
+		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
 			fs.getRoot().addChild(new FileSystemEntry(source));
@@ -285,13 +320,19 @@ public final class FileSystemTest {
 			hexChars[i * 2] = hexArray[b >>> 4];
 			hexChars[i * 2 + 1] = hexArray[b & 0x0F];
 		}
-		return CharBuffer.wrap(hexChars).toString();
+		@Nonnull
+		@SuppressWarnings("null")
+		final String hexString = CharBuffer.wrap(hexChars).toString();
+		return hexString;
 	}
 
 	private static String newUniqueName(final int minimumLength) {
 		final StringBuilder suffix = new StringBuilder().append('.').append(SUFFIX_GENERATOR.incrementAndGet());
 		if (suffix.length() >= minimumLength) {
-			return suffix.toString();
+			@Nonnull
+			@SuppressWarnings("null")
+			final String s = suffix.toString();
+			return s;
 		}
 
 		final StringBuilder name = new StringBuilder();
@@ -299,7 +340,10 @@ public final class FileSystemTest {
 			name.append((char) ('a' + (char) (i % 26)));
 		}
 		name.append(suffix);
-		return name.toString();
+		@Nonnull
+		@SuppressWarnings("null")
+		final String s = name.toString();
+		return s;
 	}
 
 	private static final AtomicLong SUFFIX_GENERATOR = new AtomicLong();

@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Date;
 
+import javax.annotation.Nonnull;
+
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -28,18 +30,24 @@ public final class FileSystemEntryTest {
 	@SuppressWarnings("static-method")
 	public void testBinaryFormat() throws IOException {
 		final FileSystemEntry link = new FileSystemEntry(SYMBOLIC_LINK, new PosixAttributes((short) 0777), (byte) 1, (short) 1021, (short) 1021, 11, new Date(), new Date(), new Date(), ".Xdefaults");
+		@Nonnull
+		@SuppressWarnings("null")
 		final ByteBuffer buffer0 = ByteBuffer.allocate(link.getDataLength());
 		link.writeMetadataTo(buffer0);
 		buffer0.flip();
 		assertEquals(link.toString(), FileSystemEntry.readMetadataFrom(buffer0).toString());
 
 		final FileSystemEntry file = new FileSystemEntry(FILE, new PosixAttributes((short) 0644), (byte) 1, (short) 1021, (short) 1021, 47, new Date(), new Date(), new Date(), ".Xresources");
+		@Nonnull
+		@SuppressWarnings("null")
 		final ByteBuffer buffer1 = ByteBuffer.allocate(file.getDataLength());
 		file.writeMetadataTo(buffer1);
 		buffer1.flip();
 		assertEquals(file.toString(), FileSystemEntry.readMetadataFrom(buffer1).toString());
 
 		final FileSystemEntry directory = new FileSystemEntry(DIRECTORY, new PosixAttributes((short) 01777), (byte) 1, (short) 0, (short) 0, 4096, new Date(), new Date(), new Date(), "tmp");
+		@Nonnull
+		@SuppressWarnings("null")
 		final ByteBuffer buffer2 = ByteBuffer.allocate(directory.getDataLength());
 		directory.writeMetadataTo(buffer2);
 		buffer2.flip();

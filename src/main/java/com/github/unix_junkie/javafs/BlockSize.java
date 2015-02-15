@@ -18,6 +18,8 @@ import static java.util.stream.Collectors.toSet;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
@@ -41,6 +43,7 @@ public enum BlockSize {
 
 	private final long maxFsLength;
 
+	@Nonnull
 	private final String description;
 
 	/**
@@ -86,13 +89,17 @@ public enum BlockSize {
 	public static BlockSize getMinimum() {
 		final TreeSet<BlockSize> values = new TreeSet<>(comparingInt(BlockSize::getLength));
 		values.addAll(asList(values()));
-		return values.first();
+		final BlockSize minimum = values.first();
+		assert minimum != null;
+		return minimum;
 	}
 
 	public static BlockSize getMaximum() {
 		final TreeSet<BlockSize> values = new TreeSet<>(comparingInt(BlockSize::getLength));
 		values.addAll(asList(values()));
-		return values.last();
+		final BlockSize maximum = values.last();
+		assert maximum != null;
+		return maximum;
 	}
 
 	public static SortedSet<BlockSize> getSupportedBlockSizes(final long length) {
@@ -114,6 +121,8 @@ public enum BlockSize {
 			throw new IllegalArgumentException(format("No block size matching file system length found: %d", Long.valueOf(length)));
 		}
 
-		return supportedBlockSizes.last();
+		final BlockSize maximum = supportedBlockSizes.last();
+		assert maximum != null;
+		return maximum;
 	}
 }

@@ -31,14 +31,19 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.function.LongFunction;
 import java.util.logging.Logger;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public final class FileSystem implements AutoCloseable {
+	@Nonnull
+	@SuppressWarnings("null")
 	private static final Logger LOGGER = Logger.getLogger(FileSystem.class.getName());
 
 	private static final short SECTOR_SIZE = 512;
 
+	@Nonnull
 	private final FileChannel channel;
 
 	/**
@@ -46,6 +51,7 @@ public final class FileSystem implements AutoCloseable {
 	 */
 	private final long dataAreaLength;
 
+	@Nonnull
 	private final BlockSize blockSize;
 
 	private FileSystem(final FileChannel channel, final long dataAreaLength,
@@ -83,6 +89,8 @@ public final class FileSystem implements AutoCloseable {
 		final OpenOption options[] = exists(path)
 				? new OpenOption[] {READ, WRITE, TRUNCATE_EXISTING, CREATE}
 				: new OpenOption[] {READ, WRITE, CREATE_NEW, SPARSE};
+		@Nonnull
+		@SuppressWarnings("null")
 		final FileChannel channel = FileChannel.open(path, options);
 		final FileSystem fileSystem = new FileSystem(channel, dataAreaLength, blockSize);
 		final long fullFileLength = fileSystem.getLength();
@@ -222,7 +230,10 @@ public final class FileSystem implements AutoCloseable {
 	}
 
 	public String getVersion() {
-		return format("%d.%d", Byte.valueOf(this.getVersionMajor()), Byte.valueOf(this.getVersionMinor()));
+		@Nonnull
+		@SuppressWarnings("null")
+		final String version = format("%d.%d", Byte.valueOf(this.getVersionMajor()), Byte.valueOf(this.getVersionMinor()));
+		return version;
 	}
 
 	/**
@@ -498,6 +509,8 @@ public final class FileSystem implements AutoCloseable {
 	private void writeInode(final long blockId, final long inode) throws IOException {
 		final byte blockAddressSize = this.getBlockAddressSize();
 
+		@Nonnull
+		@SuppressWarnings("null")
 		final ByteBuffer inodeBuffer = ByteBuffer.allocate(blockAddressSize);
 
 		this.writeInode(inode, inodeBuffer);
@@ -512,7 +525,10 @@ public final class FileSystem implements AutoCloseable {
 		final long dataAreaStart = this.getBootSectorSize() + this.getInodeTableSizeRounded();
 		final int blockLength = this.getBlockSize().getLength();
 		final long dataAreaOffset = blockId * blockLength;
-		return this.channel.map(READ_WRITE, dataAreaStart + dataAreaOffset, blockLength);
+		@Nonnull
+		@SuppressWarnings("null")
+		final MappedByteBuffer block = this.channel.map(READ_WRITE, dataAreaStart + dataAreaOffset, blockLength);
+		return block;
 	}
 
 	List<MappedByteBuffer> mapBlocks(final long firstBlockId) throws IOException {
@@ -534,6 +550,8 @@ public final class FileSystem implements AutoCloseable {
 	private <T> void scanInodeTable(final LongFunction<T> f) throws IOException {
 		final int bootSectorSize = this.getBootSectorSize();
 		if (this.getInodeTableSize() <= Integer.MAX_VALUE) {
+			@Nonnull
+			@SuppressWarnings("null")
 			final MappedByteBuffer inodeTable = this.channel.map(READ_ONLY, bootSectorSize, this.getInodeTableSize());
 
 			for (long l = 0; l < this.getTotalBlockCount(); l++) {

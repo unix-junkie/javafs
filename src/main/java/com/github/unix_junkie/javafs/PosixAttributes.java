@@ -22,11 +22,13 @@ import javax.annotation.Nonnull;
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public final class PosixAttributes {
+	@Nonnull
+	@SuppressWarnings("null")
 	private static final Logger LOGGER = Logger.getLogger(PosixAttributes.class.getName());
 
 	private final short value;
 
-	public PosixAttributes(@Nonnull final Path path) {
+	public PosixAttributes(final Path path) {
 		this.value = extractValue(path);
 	}
 
@@ -67,7 +69,10 @@ public final class PosixAttributes {
 			permissions[8] = 't';
 		}
 
-		return builder.append(permissions).toString();
+		@Nonnull
+		@SuppressWarnings("null")
+		final String s = builder.append(permissions).toString();
+		return s;
 	}
 
 	private static short extractValue(final Path path) {

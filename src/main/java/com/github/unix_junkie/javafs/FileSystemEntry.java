@@ -18,6 +18,7 @@ import static java.nio.file.Files.readAttributes;
 import static java.nio.file.Files.readSymbolicLink;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.StandardOpenOption.READ;
+import static java.util.Collections.emptySet;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -29,7 +30,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,12 +37,15 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public final class FileSystemEntry {
+	@Nonnull
+	@SuppressWarnings("null")
 	private static final Logger LOGGER = Logger.getLogger(FileSystemEntry.class.getName());
 
 	/**
@@ -64,8 +67,10 @@ public final class FileSystemEntry {
 
 	static byte SIZE_OFFSET = 11;
 
+	@Nonnull
 	private final FileType type;
 
+	@Nonnull
 	private final PosixAttributes attributes;
 
 	private final byte numberOfLinks;
@@ -86,6 +91,7 @@ public final class FileSystemEntry {
 
 	private final Date accessTime;
 
+	@Nonnull
 	private final String name;
 
 	@Nullable
@@ -126,7 +132,10 @@ public final class FileSystemEntry {
 		this.creationTime = new Date(attrs.creationTime().toMillis());
 		this.modificationTime = new Date(attrs.lastModifiedTime().toMillis());
 		this.accessTime = new Date(attrs.lastAccessTime().toMillis());
-		this.name = validateName(source.getFileName().toString(), this.type);
+		@Nonnull
+		@SuppressWarnings("null")
+		final String fileName = source.getFileName().toString();
+		this.name = validateName(fileName, this.type);
 
 		this.source = source;
 	}
@@ -184,6 +193,8 @@ public final class FileSystemEntry {
 
 		final int dataLength = source.getInt();
 		final short typeAndAttributes = source.getShort();
+		@Nonnull
+		@SuppressWarnings("null")
 		final FileType type = FileType.values()[typeAndAttributes >> 12];
 		final PosixAttributes attributes = new PosixAttributes((short) (typeAndAttributes & 0x0FFF));
 		final byte numberOfLinks = source.get();
@@ -200,6 +211,8 @@ public final class FileSystemEntry {
 		final byte encodedName0[] = new byte[dataLength - NAME_OFFSET];
 		source.get(encodedName0);
 		final ByteBuffer encodedName = ByteBuffer.wrap(encodedName0);
+		@Nonnull
+		@SuppressWarnings("null")
 		final String name = UTF_8.newDecoder().decode(encodedName).toString();
 
 		return new FileSystemEntry(type, attributes, numberOfLinks, uid,
@@ -436,6 +449,8 @@ public final class FileSystemEntry {
 		 *
 		 * XXX: Implement for directory sizes larger than 2G.
 		 */
+		@Nonnull
+		@SuppressWarnings("null")
 		final ByteBuffer metadata = ByteBuffer.allocate((int) this.size - sizeDecrement);
 		for (final FileSystemEntry remainingChild : children) {
 			this.fileSystem.writeInode(remainingChild.firstBlockId, metadata);
@@ -475,9 +490,8 @@ public final class FileSystemEntry {
 	public long getBlockCount() {
 		this.requireNotDetached();
 
-		@SuppressWarnings("null")
-		final int blockSie = this.fileSystem.getBlockSize().getLength();
-		return this.size / blockSie + 1;
+		final int blockSize = this.fileSystem.getBlockSize().getLength();
+		return this.size / blockSize + 1;
 	}
 
 	public Set<FileSystemEntry> list() throws IOException {
@@ -487,7 +501,10 @@ public final class FileSystemEntry {
 		this.requireNotDetached();
 
 		if (this.size == 0) {
-			return Collections.emptySet();
+			@Nonnull
+			@SuppressWarnings("null")
+			final Set<FileSystemEntry> emptySet = emptySet();
+			return emptySet;
 		}
 
 		final Set<FileSystemEntry> children = new LinkedHashSet<>();
@@ -495,6 +512,8 @@ public final class FileSystemEntry {
 		final List<MappedByteBuffer> blocks = this.fileSystem.mapBlocks(this.firstBlockId);
 		final int blockCount = blocks.size();
 		if (blockCount == 1) {
+			@Nonnull
+			@SuppressWarnings("null")
 			final MappedByteBuffer block = blocks.iterator().next();
 
 			long bytesRead = 0L;
@@ -544,10 +563,13 @@ public final class FileSystemEntry {
 		if (this.type == SYMBOLIC_LINK) {
 			builder.append(" -> ");
 		}
-		return builder.toString();
+		@Nonnull
+		@SuppressWarnings("null")
+		final String s = builder.toString();
+		return s;
 	}
 
-	void setFileSystem(final FileSystem fileSystem) {
+	void setFileSystem(@Nullable final FileSystem fileSystem) {
 		this.fileSystem = fileSystem;
 	}
 
@@ -555,6 +577,7 @@ public final class FileSystemEntry {
 		this.firstBlockId = firstBlockId;
 	}
 
+	@SuppressWarnings("null")
 	private ByteBuffer getEncodedName() throws CharacterCodingException {
 		return (ByteBuffer) (this.encodedName == null
 				? this.encodedName = UTF_8.newEncoder().encode(CharBuffer.wrap(this.name))

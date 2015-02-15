@@ -22,6 +22,8 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
@@ -34,8 +36,11 @@ public final class Main {
 		}
 	}
 
+	@Nonnull
+	@SuppressWarnings("null")
 	private static final Logger LOGGER = Logger.getLogger(Main.class.getName());
 
+	@Nonnull
 	private static final String COMMANDS[] = {
 		"mkfs",
 	};
@@ -100,9 +105,12 @@ public final class Main {
 		switch (args[0]) {
 		case "mkfs":
 			try {
-				final ArrayList<String> commandArgs = new ArrayList<>(asList(args));
-				commandArgs.remove(0);
-				System.exit(mkfs(commandArgs.toArray(new String[0])));
+				final ArrayList<String> commandArgs0 = new ArrayList<>(asList(args));
+				commandArgs0.remove(0);
+				@Nonnull
+				@SuppressWarnings("null")
+				final String commandArgs1[] = commandArgs0.toArray(new String[0]);
+				System.exit(mkfs(commandArgs1));
 			} catch (final IllegalArgumentException iae) {
 				System.err.println(iae.getMessage());
 				LOGGER.log(WARNING, "", iae);

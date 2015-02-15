@@ -7,6 +7,8 @@ import static java.lang.String.format;
 
 import java.util.concurrent.Callable;
 
+import javax.annotation.Nullable;
+
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
@@ -42,7 +44,7 @@ public enum SizeUnit {
 		}
 	}
 
-	public static long parseSize(final String s) {
+	public static long parseSize(@Nullable final String s) {
 		if (s == null || s.length() == 0) {
 			throw new IllegalArgumentException("Size is empty");
 		}
