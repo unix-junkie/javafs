@@ -85,10 +85,13 @@ public final class FileSystemEntry {
 	 */
 	private long size;
 
+	@Nonnull
 	private final Date creationTime;
 
+	@Nonnull
 	private final Date modificationTime;
 
+	@Nonnull
 	private final Date accessTime;
 
 	@Nonnull
