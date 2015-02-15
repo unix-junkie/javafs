@@ -115,13 +115,18 @@ public abstract class FileUtilities {
 	}
 
 	public static byte getNlinks(final Path path) throws IOException {
-		final Map<String, Object> attributes = readAttributes(path, "unix:*", NOFOLLOW_LINKS);
-		final Integer nlinks = (Integer) attributes.get("nlinks");
-		if (nlinks == null) {
+		try {
+			final Map<String, Object> attributes = readAttributes(path, "unix:*", NOFOLLOW_LINKS);
+			final Integer nlinks = (Integer) attributes.get("nlinks");
+			if (nlinks == null) {
+				LOGGER.info(format("unix:nlinks unavailable for %s; returning 1", path));
+				return 1;
+			}
+			return nlinks.byteValue();
+		} catch (final UnsupportedOperationException uoe) {
 			LOGGER.info(format("unix:nlinks unavailable for %s; returning 1", path));
 			return 1;
 		}
-		return nlinks.byteValue();
 	}
 
 	public static boolean symbolicLinksSupported() throws IOException {
