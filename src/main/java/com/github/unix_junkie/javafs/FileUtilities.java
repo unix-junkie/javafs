@@ -22,7 +22,10 @@ import static java.util.logging.Level.WARNING;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.attribute.UserPrincipal;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -42,6 +45,10 @@ public abstract class FileUtilities {
 	@Nonnull
 	private static final Object SYMBOLIC_LINKS_SUPPORTED_LOCK = new Object();
 
+	private static final ConcurrentMap<Integer, String> USERS = new ConcurrentHashMap<>();
+
+	private static final ConcurrentMap<Integer, String> GROUPS = new ConcurrentHashMap<>();
+
 	private FileUtilities() {
 		assert false;
 	}
@@ -49,6 +56,7 @@ public abstract class FileUtilities {
 	public static short getUid(final Path path) {
 		try {
 			final Integer uid = (Integer) getAttribute(path, "unix:uid", NOFOLLOW_LINKS);
+			USERS.putIfAbsent(uid, ((UserPrincipal) getAttribute(path, "posix:owner", NOFOLLOW_LINKS)).getName());
 			return uid.shortValue();
 		} catch (final UnsupportedOperationException ignored) {
 			/*
@@ -64,6 +72,7 @@ public abstract class FileUtilities {
 	public static short getGid(final Path path) {
 		try {
 			final Integer gid = (Integer) getAttribute(path, "unix:gid", NOFOLLOW_LINKS);
+			GROUPS.putIfAbsent(gid, ((UserPrincipal) getAttribute(path, "posix:group", NOFOLLOW_LINKS)).getName());
 			return gid.shortValue();
 		} catch (final UnsupportedOperationException ignored) {
 			/*
@@ -90,16 +99,18 @@ public abstract class FileUtilities {
 	}
 
 	public static String uidToString(final short uid) {
+		final String owner = USERS.get(Integer.valueOf(uid));
 		@Nonnull
 		@SuppressWarnings("null")
-		final String s = Short.toString(uid);
+		final String s = owner == null ? Short.toString(uid) : owner;
 		return s;
 	}
 
 	public static String gidToString(final short gid) {
+		final String group = GROUPS.get(Integer.valueOf(gid));
 		@Nonnull
 		@SuppressWarnings("null")
-		final String s = Short.toString(gid);
+		final String s = group == null ? Short.toString(gid) : group;
 		return s;
 	}
 
