@@ -6,6 +6,7 @@ package com.github.unix_junkie.javafs;
 import static com.github.unix_junkie.javafs.FileType.DIRECTORY;
 import static com.github.unix_junkie.javafs.FileType.SYMBOLIC_LINK;
 import static com.github.unix_junkie.javafs.FileUtilities.getGid;
+import static com.github.unix_junkie.javafs.FileUtilities.getNlinks;
 import static com.github.unix_junkie.javafs.FileUtilities.getPosixAttributes;
 import static com.github.unix_junkie.javafs.FileUtilities.getType;
 import static com.github.unix_junkie.javafs.FileUtilities.getUid;
@@ -125,8 +126,7 @@ public final class FileSystemEntry {
 		}
 		this.type = getType(source);
 		this.attributes = getPosixAttributes(source);
-		final Map<String, Object> nlinks = readAttributes(source, "unix:nlinks", NOFOLLOW_LINKS);
-		this.numberOfLinks = nlinks.isEmpty() ? 1 : ((Integer) nlinks.get("nlinks")).byteValue();
+		this.numberOfLinks = getNlinks(source);
 		this.uid = getUid(source);
 		this.gid = getGid(source);
 		/*

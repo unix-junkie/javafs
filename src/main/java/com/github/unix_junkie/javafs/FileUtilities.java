@@ -6,14 +6,17 @@ package com.github.unix_junkie.javafs;
 import static com.github.unix_junkie.javafs.FileType.DIRECTORY;
 import static com.github.unix_junkie.javafs.FileType.FILE;
 import static com.github.unix_junkie.javafs.FileType.SYMBOLIC_LINK;
+import static java.lang.String.format;
 import static java.nio.file.Files.getAttribute;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.Files.isSymbolicLink;
+import static java.nio.file.Files.readAttributes;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.util.logging.Level.WARNING;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
@@ -85,5 +88,15 @@ public abstract class FileUtilities {
 		@SuppressWarnings("null")
 		final String s = Short.toString(gid);
 		return s;
+	}
+
+	public static byte getNlinks(final Path path) throws IOException {
+		final Map<String, Object> attributes = readAttributes(path, "unix:*", NOFOLLOW_LINKS);
+		final Integer nlinks = (Integer) attributes.get("nlinks");
+		if (nlinks == null) {
+			LOGGER.info(format("unix:nlinks unavailable for %s; returning 1", path));
+			return 1;
+		}
+		return nlinks.byteValue();
 	}
 }
