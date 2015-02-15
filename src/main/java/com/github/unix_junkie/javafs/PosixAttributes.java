@@ -29,11 +29,14 @@ public final class PosixAttributes {
 	private final short value;
 
 	public PosixAttributes(final Path path) {
-		this.value = extractValue(path);
+		this(extractValue(path));
 	}
 
-	public PosixAttributes(final short value) {
-		this.value = value;
+	public PosixAttributes(final int value) {
+		/*
+		 * Make sure we only store 12 bits of information.
+		 */
+		this.value = (short) (value & 07777);
 	}
 
 	/**
@@ -75,10 +78,19 @@ public final class PosixAttributes {
 		return s;
 	}
 
-	private static short extractValue(final Path path) {
+	/**
+	 * <p>Returns the {@code int} value with at most 12 lowest bits set,
+	 * representing POSIX attributes of a {@code path}.</p>
+	 *
+	 * @param path the path whose POSIX attributes should be read.
+	 * @return the {@code int} value with at most 12 lowest bits set,
+	 *         representing POSIX attributes of a {@code path}.
+	 * @todo Rewrite using "unix:mode" attribute (Integer).
+	 */
+	private static int extractValue(final Path path) {
 		try {
 			final Set<PosixFilePermission> permissions = readAttributes(path, PosixFileAttributes.class, NOFOLLOW_LINKS).permissions();
-			short posixAttributes = 0;
+			int posixAttributes = 0;
 			final PosixFilePermission[] values = PosixFilePermission.values();
 			for (final PosixFilePermission permission : values) {
 				if (permissions.contains(permission)) {
@@ -90,10 +102,10 @@ public final class PosixAttributes {
 			/*
 			 * Windows.
 			 */
-			return (short) (isDirectory(path, NOFOLLOW_LINKS) ? 0755 : 0744);
+			return isDirectory(path, NOFOLLOW_LINKS) ? 0755 : 0744;
 		} catch (final IOException ioe) {
 			LOGGER.log(WARNING, "", ioe);
-			return (short) (isSymbolicLink(path) ? 0777 : isDirectory(path, NOFOLLOW_LINKS) ? 0755 : 0744);
+			return isSymbolicLink(path) ? 0777 : isDirectory(path, NOFOLLOW_LINKS) ? 0755 : 0744;
 		}
 	}
 }

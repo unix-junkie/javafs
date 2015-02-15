@@ -17,15 +17,27 @@ public final class PosixAttributesTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void test() {
-		assertEquals("---------", new PosixAttributes((short) 0).toString());
-		assertEquals("rw-------", new PosixAttributes((short) 0600).toString());
-		assertEquals("rw-r--r--", new PosixAttributes((short) 0644).toString());
-		assertEquals("rwx------", new PosixAttributes((short) 0700).toString());
-		assertEquals("rwxr-xr-x", new PosixAttributes((short) 0755).toString());
-		assertEquals("rwxrwxrwx", new PosixAttributes((short) 0777).toString());
-		assertEquals("--s------", new PosixAttributes((short) 04000).toString());
-		assertEquals("-----s---", new PosixAttributes((short) 02000).toString());
-		assertEquals("--------t", new PosixAttributes((short) 01000).toString());
-		assertEquals("rwsrwsrwt", new PosixAttributes((short) 07777).toString());
+		assertEquals("---------", new PosixAttributes(0).toString());
+		assertEquals("rw-------", new PosixAttributes(0600).toString());
+		assertEquals("rw-r--r--", new PosixAttributes(0644).toString());
+		assertEquals("rwx------", new PosixAttributes(0700).toString());
+		assertEquals("rwxr-xr-x", new PosixAttributes(0755).toString());
+		assertEquals("rwxrwxrwx", new PosixAttributes(0777).toString());
+		assertEquals("--s------", new PosixAttributes(04000).toString());
+		assertEquals("-----s---", new PosixAttributes(02000).toString());
+		assertEquals("--------t", new PosixAttributes(01000).toString());
+		assertEquals("rwsrwsrwt", new PosixAttributes(07777).toString());
+	}
+
+	@Test
+	@SuppressWarnings("static-method")
+	public void testMasking() {
+		assertEquals(0600, new PosixAttributes(0100600).getValue());
+		assertEquals(0600, new PosixAttributes(070600).getValue());
+		assertEquals(0600, new PosixAttributes(0770600).getValue());
+		assertEquals(0600, new PosixAttributes(07770600).getValue());
+		assertEquals(0600, new PosixAttributes(077770600).getValue());
+		assertEquals(0600, new PosixAttributes(0777770600).getValue());
+		assertEquals(0600, new PosixAttributes(07777770600).getValue());
 	}
 }
