@@ -6,12 +6,18 @@ package com.github.unix_junkie.javafs;
 import static com.github.unix_junkie.javafs.FileType.DIRECTORY;
 import static com.github.unix_junkie.javafs.FileType.FILE;
 import static com.github.unix_junkie.javafs.FileType.SYMBOLIC_LINK;
+import static java.lang.Boolean.FALSE;
+import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
+import static java.nio.file.Files.createSymbolicLink;
+import static java.nio.file.Files.createTempFile;
+import static java.nio.file.Files.delete;
 import static java.nio.file.Files.getAttribute;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.Files.isSymbolicLink;
 import static java.nio.file.Files.readAttributes;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
+import static java.nio.file.Paths.get;
 import static java.util.logging.Level.WARNING;
 
 import java.io.IOException;
@@ -20,6 +26,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
@@ -28,6 +35,12 @@ public abstract class FileUtilities {
 	@Nonnull
 	@SuppressWarnings("null")
 	private static final Logger LOGGER = Logger.getLogger(FileUtilities.class.getName());
+
+	@Nullable
+	private static volatile Boolean symbolicLinksSupported;
+
+	@Nonnull
+	private static final Object SYMBOLIC_LINKS_SUPPORTED_LOCK = new Object();
 
 	private FileUtilities() {
 		assert false;
@@ -98,5 +111,33 @@ public abstract class FileUtilities {
 			return 1;
 		}
 		return nlinks.byteValue();
+	}
+
+	public static boolean symbolicLinksSupported() throws IOException {
+		if (symbolicLinksSupported == null) {
+			synchronized (SYMBOLIC_LINKS_SUPPORTED_LOCK) {
+				if (symbolicLinksSupported == null) {
+					@Nonnull
+					@SuppressWarnings("null")
+					final Path tempFile = createTempFile(null, null);
+					try {
+						final Path link = get(tempFile.getParent().toString(), tempFile.getFileName() + ".lnk");
+						try {
+							createSymbolicLink(link, tempFile);
+							delete(link);
+							symbolicLinksSupported = TRUE;
+						} catch (final UnsupportedOperationException uoe) {
+							symbolicLinksSupported = FALSE;
+						}
+					} finally {
+						delete(tempFile);
+					}
+				}
+			}
+		}
+
+		assert symbolicLinksSupported != null;
+
+		return symbolicLinksSupported.booleanValue();
 	}
 }
