@@ -47,11 +47,13 @@ public enum BlockSize {
 	private final String description;
 
 	/**
-	 * @param length
+	 * @param length the length of the block, in bytes.
 	 * @param minFsLength minimum file system length in bytes, inclusive.
 	 * @param maxFsLength maximum file system length in bytes (exclusive, if
 	 *        the value is a power of 2; inclusive otherwise).
-	 * @param description
+	 * @param description the human-readable description of this block size
+	 *        (similar to that produced by "du" or "df" commands with "-h"
+	 *        switch).
 	 */
 	private BlockSize(final long length, final long minFsLength, final long maxFsLength, final String description) {
 		this.length = (int) length;
