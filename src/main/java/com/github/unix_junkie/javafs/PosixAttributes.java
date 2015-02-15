@@ -93,6 +93,9 @@ public final class PosixAttributes {
 				return defaultValue(path);
 			}
 			return ((Integer) attributes.get("mode")).intValue();
+		} catch (final UnsupportedOperationException uoe) {
+			LOGGER.info(format("unix:mode is unavailable for %s", path));
+			return defaultValue(path);
 		} catch (final IOException ioe) {
 			LOGGER.log(WARNING, "", ioe);
 			return defaultValue(path);
