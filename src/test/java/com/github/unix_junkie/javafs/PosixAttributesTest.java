@@ -4,16 +4,19 @@
 package com.github.unix_junkie.javafs;
 
 import static com.github.unix_junkie.javafs.FileUtilities.getPosixAttributes;
+import static java.lang.System.getProperty;
 import static java.nio.file.Files.createTempDirectory;
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.delete;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assume.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
 
 import javax.annotation.Nonnull;
 
+import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,6 +56,7 @@ public final class PosixAttributesTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void testFileAttributes() throws IOException {
+		assumeFalse("On Windows, files are executable by default", getProperty("os.name").startsWith("Windows"));
 		@Nonnull
 		@SuppressWarnings("null")
 		final Path tempFile = createTempFile(null, null);
