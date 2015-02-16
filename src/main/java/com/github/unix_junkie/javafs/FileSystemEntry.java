@@ -255,6 +255,9 @@ public final class FileSystemEntry {
 	 * <p>Writes file contents to {@code destination}. Only suitable for
 	 * files under 2G.</p>
 	 *
+	 * <p>With respect to the file system, this is essentially a <em>read</em>
+	 * operation.</p>
+	 *
 	 * @param destination the buffer file contents will be writen to.
 	 * @throws IOException if an I/O error occurs, particularly if {@code
 	 *         destination} is not large enough to accommodate the file
