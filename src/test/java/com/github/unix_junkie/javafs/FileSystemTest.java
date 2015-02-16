@@ -303,69 +303,42 @@ public final class FileSystemTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void testFileSymlinkSupport() throws IOException {
-		assumeTrue(symbolicLinksSupported());
-
 		@Nonnull
 		@SuppressWarnings("null")
 		final Path tempFile = createTempFile(null, null);
-		@Nonnull
-		@SuppressWarnings("null")
-		final Path link = get(tempFile.getParent().toString(), tempFile.getFileName() + ".lnk");
-		try {
-			assertTrue(exists(tempFile));
-			assertFalse(exists(link));
-			assertFalse(exists(link, NOFOLLOW_LINKS));
-
-			createSymbolicLink(link, tempFile);
-			assertTrue(isSymbolicLink(link));
-
-			assertTrue(exists(tempFile));
-			assertTrue(exists(link));
-			assertTrue(exists(link, NOFOLLOW_LINKS));
-
-			delete(tempFile);
-
-			assertFalse(exists(tempFile));
-			assertFalse(exists(link));
-			assertTrue(exists(link, NOFOLLOW_LINKS));
-
-			@Nonnull
-			@SuppressWarnings("null")
-			final Path p = createTempFile(null, ".javafs");
-			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-				fs.getRoot().addChild(new FileSystemEntry(link));
-			}
-		} finally {
-			delete(link);
-		}
+		testSymlinkSupport(tempFile);
 	}
 
 	@Test
 	@SuppressWarnings("static-method")
 	public void testDirectorySymlinkSupport() throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path tempDir = createTempDirectory(null);
+		testSymlinkSupport(tempDir);
+	}
+
+	private static void testSymlinkSupport(final Path target) throws IOException {
 		assumeTrue(symbolicLinksSupported());
 
 		@Nonnull
 		@SuppressWarnings("null")
-		final Path tempDir = createTempDirectory(null);
-		@Nonnull
-		@SuppressWarnings("null")
-		final Path link = get(tempDir.getParent().toString(), tempDir.getFileName() + ".lnk");
+		final Path link = get(target.getParent().toString(), target.getFileName() + ".lnk");
 		try {
-			assertTrue(exists(tempDir));
+			assertTrue(exists(target));
 			assertFalse(exists(link));
 			assertFalse(exists(link, NOFOLLOW_LINKS));
 
-			createSymbolicLink(link, tempDir);
+			createSymbolicLink(link, target);
 			assertTrue(isSymbolicLink(link));
 
-			assertTrue(exists(tempDir));
+			assertTrue(exists(target));
 			assertTrue(exists(link));
 			assertTrue(exists(link, NOFOLLOW_LINKS));
 
-			delete(tempDir);
+			delete(target);
 
-			assertFalse(exists(tempDir));
+			assertFalse(exists(target));
 			assertFalse(exists(link));
 			assertTrue(exists(link, NOFOLLOW_LINKS));
 
@@ -373,14 +346,41 @@ public final class FileSystemTest {
 			@SuppressWarnings("null")
 			final Path p = createTempFile(null, ".javafs");
 			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-				fs.getRoot().addChild(new FileSystemEntry(link));
+				final FileSystemEntry symlinkEntry0 = new FileSystemEntry(link);
+				/*
+				 * Read the target of a detached entry.
+				 */
+				final Path target0 = symlinkEntry0.getTarget();
+				assertTrue(symlinkEntry0.isDetached());
+
+				fs.getRoot().addChild(symlinkEntry0);
+
+				/*
+				 * Re-read the root directory: make sure all values come from disk.
+				 */
+				final FileSystemEntry root = fs.getRoot();
+				System.out.println(root);
+
+				final Set<FileSystemEntry> children = root.list();
+				assertEquals(1, children.size());
+				final FileSystemEntry symlinkEntry1 = children.iterator().next();
+
+				System.out.println(symlinkEntry1);
+
+				assertFalse(symlinkEntry1.isDetached());
+				/*
+				 * Read the target of an attached entry.
+				 */
+				final Path target1 = symlinkEntry1.getTarget();
+
+				assertEquals(target0, target1);
 			}
 		} finally {
 			delete(link);
 		}
 	}
 
-	public static String toHexString(final byte bytes[]) {
+	static String toHexString(final byte bytes[]) {
 		final char hexArray[] = "0123456789abcdef".toCharArray();
 		final char hexChars[] = new char[bytes.length * 2];
 		for (int i = 0, n = bytes.length; i < n; i++) {

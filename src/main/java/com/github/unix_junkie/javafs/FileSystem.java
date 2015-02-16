@@ -4,6 +4,7 @@
 package com.github.unix_junkie.javafs;
 
 import static com.github.unix_junkie.javafs.BlockSize.guessBlockSize;
+import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.lang.System.nanoTime;
 import static java.nio.channels.FileChannel.MapMode.READ_ONLY;
@@ -531,6 +532,19 @@ public final class FileSystem implements AutoCloseable {
 		return block;
 	}
 
+	/**
+	 * <p>Returns the list of blocks allocated for (or occupied by) the file
+	 * pointed to by {@code firstBlockId}. Since a file occupies at least
+	 * one block, the list returned is guaranteed to have a {@linkplain
+	 * List#size() size}} of 1 or more.</p>
+	 *
+	 * <p>The blocks returned can be read from or written to.</p>
+	 *
+	 * @param firstBlockId the id of the first block allocated for the file.
+	 * @return the list of blocks allocated for (or occupied by) the file
+	 *         pointed to by {@code firstBlockId}.
+	 * @throws IOException if an I/O error occurs.
+	 */
 	List<MappedByteBuffer> mapBlocks(final long firstBlockId) throws IOException {
 		final List<MappedByteBuffer> buffers = new ArrayList<>();
 
@@ -545,6 +559,46 @@ public final class FileSystem implements AutoCloseable {
 		}
 
 		return buffers;
+	}
+
+	/**
+	 * <p>Writes file's contents to the previously allocated blocks.</p>
+	 *
+	 * @param firstBlockId the id of the first block allocated for the file.
+	 * @param source the buffer which contains file's contents.
+	 * @throws IOException if an I/O error occurs.
+	 * @see #writeTo(long, FileChannel)
+	 */
+	void writeTo(final long firstBlockId, final ByteBuffer source) throws IOException {
+		final int originalLimit = source.limit();
+		final int position = source.position();
+		if (originalLimit > 0 && originalLimit == position) {
+			throw new IllegalArgumentException(format("source not flipped: position = %d; limit = %d",
+					Integer.valueOf(position),
+					Integer.valueOf(originalLimit)));
+		}
+
+		final List<MappedByteBuffer> blocks = this.mapBlocks(firstBlockId);
+		for (final MappedByteBuffer block : blocks) {
+			/*
+			 * Write at most "blockSize" bytes to each block.
+			 */
+			source.limit(min(source.position() + this.getBlockSize().getLength(), originalLimit));
+			block.put(source);
+		}
+	}
+
+	/**
+	 * <p>Writes file's contents to the previously allocated blocks.</p>
+	 *
+	 * @param firstBlockId the id of the first block allocated for the file.
+	 * @param source the channel for reading a file on the "real" file system.
+	 * @throws IOException if an I/O error occurs.
+	 * @see #writeTo(long, ByteBuffer)
+	 */
+	void writeTo(final long firstBlockId, final FileChannel source) throws IOException {
+		final List<MappedByteBuffer> blocks = this.mapBlocks(firstBlockId);
+		source.read(blocks.toArray(new MappedByteBuffer[0]));
 	}
 
 	private <T> void scanInodeTable(final LongFunction<T> f) throws IOException {

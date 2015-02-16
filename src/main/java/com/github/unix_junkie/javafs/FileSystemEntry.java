@@ -18,8 +18,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.Files.readAttributes;
 import static java.nio.file.Files.readSymbolicLink;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
+import static java.nio.file.Paths.get;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.util.Collections.emptySet;
+import static java.util.logging.Level.WARNING;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,6 +40,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import javax.annotation.CheckForNull;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -348,24 +351,28 @@ public final class FileSystemEntry {
 		}
 
 		/*
-		 * Allocate inode for the child directory.
+		 * Allocate inode for the child entry.
 		 */
 		final long childInode = this.fileSystem.allocateBlocks(childBlockCount);
 		switch (child.type) {
 		case FILE:
 			if (child.source != null) {
-				try (final FileChannel channel = FileChannel.open(child.source, READ)) {
-					final List<MappedByteBuffer> blocks = this.fileSystem.mapBlocks(childInode);
-					channel.read(blocks.toArray(new MappedByteBuffer[0]));
+				try (@Nonnull @SuppressWarnings("null")
+						final FileChannel channel = FileChannel.open(child.source, READ)) {
+					this.fileSystem.writeTo(childInode, channel);
 				}
 			}
 			break;
 		case SYMBOLIC_LINK:
 			if (child.source != null) {
 				/*
-				 * TODO: Implement symlink support.
+				 * The buffer already has its position set to 0,
+				 * so there's no need in flipping.
 				 */
-				LOGGER.info(format("%s%s", child, readSymbolicLink(child.source)));
+				@Nonnull
+				@SuppressWarnings("null")
+				final ByteBuffer contents = UTF_8.newEncoder().encode(CharBuffer.wrap(readSymbolicLink(child.source).toString()));
+				this.fileSystem.writeTo(childInode, contents);
 			}
 			break;
 		case DIRECTORY:
@@ -461,17 +468,8 @@ public final class FileSystemEntry {
 			remainingChild.writeMetadataTo(metadata);
 		}
 		metadata.flip();
-		final int originalLimit = metadata.limit();
 
-		final List<MappedByteBuffer> blocks = this.fileSystem.mapBlocks(this.firstBlockId);
-		for (final MappedByteBuffer block : blocks) {
-			/*
-			 * Write at most "blockSize" bytes to each block.
-			 */
-			metadata.limit(min(metadata.position() + this.fileSystem.getBlockSize().getLength(), originalLimit));
-			block.put(metadata);
-
-		}
+		this.fileSystem.writeTo(this.firstBlockId, metadata);
 
 		/*
 		 * Parent directory size has changed.
@@ -544,6 +542,37 @@ public final class FileSystemEntry {
 	}
 
 	/**
+	 * <p>Returns this symbolic link's target. This method works for both
+	 * attached and detached entries.</p>
+	 *
+	 * @return this symbolic link's target.
+	 * @throws IllegalStateException if this entry is not a {@linkplain
+	 *         FileType#SYMBOLIC_LINK symbolic link}.
+	 * @throws IOException if an I/O error occurs.
+	 */
+	@Nullable
+	@CheckForNull
+	public Path getTarget() throws IOException {
+		if (this.type != SYMBOLIC_LINK) {
+			throw new IllegalStateException("Only applicable to symbolic links");
+		}
+
+		if (this.isDetached()) {
+			return this.source == null ? null : readSymbolicLink(this.source);
+		}
+
+		/*
+		 * Only applicable to symbolic links under 2G.
+		 */
+		@Nonnull
+		@SuppressWarnings("null")
+		final ByteBuffer contents = ByteBuffer.allocate((int) min(this.size, Integer.MAX_VALUE));
+		this.writeDataTo(contents);
+		contents.flip();
+		return get(UTF_8.newDecoder().decode(contents).toString());
+	}
+
+	/**
 	 * {@inheritDoc}
 	 *
 	 * @see Object#toString()
@@ -566,6 +595,12 @@ public final class FileSystemEntry {
 		builder.append(this.getName());
 		if (this.type == SYMBOLIC_LINK) {
 			builder.append(" -> ");
+			try {
+				builder.append(this.getTarget());
+			} catch (final IOException ioe) {
+				LOGGER.log(WARNING, "", ioe);
+				builder.append(ioe.getMessage());
+			}
 		}
 		@Nonnull
 		@SuppressWarnings("null")
@@ -607,7 +642,7 @@ public final class FileSystemEntry {
 		return this.name.length() == 0;
 	}
 
-	private boolean isDetached() {
+	boolean isDetached() {
 		return this.fileSystem == null;
 	}
 
