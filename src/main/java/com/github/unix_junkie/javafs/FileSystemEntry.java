@@ -137,13 +137,19 @@ public final class FileSystemEntry {
 		 *
 		 * Windows-specific: symbolic link size reported is 0.
 		 */
-		long reportedSize = attrs.size();
+		final long reportedSize = attrs.size();
 		switch (this.type) {
 		case DIRECTORY:
 			this.size = 0;
 			break;
 		case SYMBOLIC_LINK:
-			this.size = reportedSize != 0 ? reportedSize : readSymbolicLink(source).toString().length();
+			final String targetPath = readSymbolicLink(source).toString();
+			final ByteBuffer targetPathBytes = UTF_8.newEncoder().encode(CharBuffer.wrap(targetPath));
+			final int targetPathLength = targetPathBytes.limit() - targetPathBytes.position();
+			assert reportedSize == 0 || reportedSize == targetPathLength : format("For %s: reported size = %d; target path length = %d", targetPath,
+					Long.valueOf(reportedSize),
+					Integer.valueOf(targetPathLength));
+			this.size = reportedSize != 0 ? reportedSize : targetPathLength;
 			break;
 		case FILE:
 		default:
