@@ -134,8 +134,21 @@ public final class FileSystemEntry {
 		/*
 		 * For new (empty) directories, size is initially zero,
 		 * and gets incremented while children are added.
+		 *
+		 * Windows-specific: symbolic link size reported is 0.
 		 */
-		this.size = this.type != DIRECTORY ? attrs.size() : 0;
+		long reportedSize = attrs.size();
+		switch (this.type) {
+		case DIRECTORY:
+			this.size = 0;
+			break;
+		case SYMBOLIC_LINK:
+			this.size = reportedSize != 0 ? reportedSize : readSymbolicLink(source).toString().length();
+			break;
+		case FILE:
+		default:
+			this.size = reportedSize;
+		}
 		this.creationTime = new Date(attrs.creationTime().toMillis());
 		this.modificationTime = new Date(attrs.lastModifiedTime().toMillis());
 		this.accessTime = new Date(attrs.lastAccessTime().toMillis());
