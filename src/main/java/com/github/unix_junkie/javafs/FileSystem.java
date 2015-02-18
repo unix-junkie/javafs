@@ -4,7 +4,6 @@
 package com.github.unix_junkie.javafs;
 
 import static com.github.unix_junkie.javafs.BlockSize.guessBlockSize;
-import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.lang.System.nanoTime;
 import static java.nio.channels.FileChannel.MapMode.READ_ONLY;
@@ -19,6 +18,7 @@ import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.MappedByteBuffer;
@@ -33,6 +33,7 @@ import java.util.function.LongFunction;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
@@ -56,23 +57,10 @@ public final class FileSystem implements AutoCloseable {
 	private final BlockSize blockSize;
 
 	private FileSystem(final FileChannel channel, final long dataAreaLength,
-			final BlockSize blockSize) throws IOException {
+			final BlockSize blockSize) {
 		this.channel = channel;
 		this.dataAreaLength = dataAreaLength;
 		this.blockSize = blockSize;
-
-		System.out.println(format("%d %s-block(s)",
-				Long.valueOf(this.getTotalBlockCount()),
-				blockSize.getDescription()));
-		System.out.println(format("%d file(s)",
-				Long.valueOf(this.getFileCount())));
-		System.out.println(format("%d block(s) free",
-				Long.valueOf(this.getFreeBlockCount())));
-		System.out.println(format("Inode table addressing: %d-bit",
-				Byte.valueOf((byte) (8 * this.getBlockAddressSize()))));
-		System.out.println(format("Inode table size: %d byte(s) (%d 512-byte sector(s))",
-				Long.valueOf(this.getInodeTableSize()),
-				Long.valueOf(this.getInodeTableSizeRounded() / 512)));
 	}
 
 	public static FileSystem create(final Path path, final long length) throws IOException {
@@ -105,8 +93,8 @@ public final class FileSystem implements AutoCloseable {
 		/*
 		 * Write root directory.
 		 */
-		final FileSystemEntry root = FileSystemEntry.newDirectory("");
-		final long rootDirectorySize = root.getSize();
+		final FileSystemEntry root = new Directory("");
+		final long rootDirectorySize = root.getDataSize();
 		assert rootDirectorySize == 0 : rootDirectorySize;
 
 		root.setFileSystem(fileSystem);
@@ -121,6 +109,8 @@ public final class FileSystem implements AutoCloseable {
 		final MappedByteBuffer bootSector = channel.map(READ_WRITE, 0, bootSectorSize);
 		bootSector.position(bootSectorSize / 2);
 		root.writeMetadataTo(bootSector);
+
+		fileSystem.printStats(System.out);
 
 		return fileSystem;
 	}
@@ -194,9 +184,7 @@ public final class FileSystem implements AutoCloseable {
 
 	public long getInodeTableSizeRounded() {
 		final long inodeTableSize = this.getInodeTableSize();
-		return inodeTableSize % SECTOR_SIZE == 0
-				? inodeTableSize
-				: (inodeTableSize / SECTOR_SIZE + 1) * SECTOR_SIZE;
+		return FileUtilities.getBlockCount(inodeTableSize, SECTOR_SIZE) * SECTOR_SIZE;
 	}
 
 	public long getDataAreaLength() {
@@ -335,14 +323,33 @@ public final class FileSystem implements AutoCloseable {
 		}
 	}
 
-	public FileSystemEntry getRoot() throws IOException {
+	public Directory getRoot() throws IOException {
 		final int bootSectorSize = this.getBootSectorSize();
 		final MappedByteBuffer bootSector = this.channel.map(READ_WRITE, 0, bootSectorSize);
 		bootSector.position(bootSectorSize / 2);
-		final FileSystemEntry root = FileSystemEntry.readMetadataFrom(bootSector);
+		final Directory root = (Directory) FileSystemEntry.readMetadataFrom(bootSector);
 		root.setFileSystem(this);
 		root.setFirstBlockId(0L);
 		return root;
+	}
+
+	public void printStats(@Nullable final PrintStream out) throws IOException {
+		if (out == null) {
+			return;
+		}
+
+		out.println(format("%d %s-block(s)",
+				Long.valueOf(this.getTotalBlockCount()),
+				this.blockSize.getDescription()));
+		out.println(format("%d file(s)",
+				Long.valueOf(this.getFileCount())));
+		out.println(format("%d block(s) free",
+				Long.valueOf(this.getFreeBlockCount())));
+		out.println(format("Inode table addressing: %d-bit",
+				Byte.valueOf((byte) (8 * this.getBlockAddressSize()))));
+		out.println(format("Inode table size: %d byte(s) (%d 512-byte sector(s))",
+				Long.valueOf(this.getInodeTableSize()),
+				Long.valueOf(this.getInodeTableSizeRounded() / 512)));
 	}
 
 	void setRootDirectorySize(final long rootDirectorySize) throws IOException {
@@ -544,6 +551,7 @@ public final class FileSystem implements AutoCloseable {
 	 * @return the list of blocks allocated for (or occupied by) the file
 	 *         pointed to by {@code firstBlockId}.
 	 * @throws IOException if an I/O error occurs.
+	 * @see #getBlockCount(long)
 	 */
 	List<MappedByteBuffer> mapBlocks(final long firstBlockId) throws IOException {
 		final List<MappedByteBuffer> buffers = new ArrayList<>();
@@ -562,30 +570,52 @@ public final class FileSystem implements AutoCloseable {
 	}
 
 	/**
+	 * @param firstBlockId the id of the first block allocated for the file.
+	 * @return the number of blocks allocated for (or occupied by) the file
+	 *         pointed to by {@code firstBlockId}.
+	 * @throws IOException if an I/O error occurs.
+	 * @see #mapBlocks(long)
+	 */
+	long getBlockCount(final long firstBlockId) throws IOException {
+		long blockCount = 0L;
+
+		long blockId = firstBlockId;
+		while (blockId != this.getEofMarker()) {
+			blockCount++;
+			blockId = this.readInode(blockId);
+		}
+
+		return blockCount;
+	}
+
+	/**
 	 * <p>Writes file's contents to the previously allocated blocks.</p>
 	 *
 	 * @param firstBlockId the id of the first block allocated for the file.
 	 * @param source the buffer which contains file's contents.
 	 * @throws IOException if an I/O error occurs.
+	 * @see #writeTo(long, ByteBuffer, long)
 	 * @see #writeTo(long, FileChannel)
 	 */
 	void writeTo(final long firstBlockId, final ByteBuffer source) throws IOException {
-		final int originalLimit = source.limit();
-		final int position = source.position();
-		if (originalLimit > 0 && originalLimit == position) {
-			throw new IllegalArgumentException(format("source not flipped: position = %d; limit = %d",
-					Integer.valueOf(position),
-					Integer.valueOf(originalLimit)));
-		}
+		this.writeTo(firstBlockId, source, 0L);
+	}
 
+	/**
+	 * <p>Appends file's contents to the previously allocated blocks,
+	 * starting at {@code destinationOffset}.</p>
+	 *
+	 * @param firstBlockId the id of the first block allocated for the file.
+	 * @param source the buffer which contains file's contents.
+	 * @param destinationOffset the offset to start writing at, usually
+	 *        previous value of file size.
+	 * @throws IOException if an I/O error occurs.
+	 * @see #writeTo(long, ByteBuffer)
+	 * @see #writeTo(long, FileChannel)
+	 */
+	void writeTo(final long firstBlockId, final ByteBuffer source, final long destinationOffset) throws IOException {
 		final List<MappedByteBuffer> blocks = this.mapBlocks(firstBlockId);
-		for (final MappedByteBuffer block : blocks) {
-			/*
-			 * Write at most "blockSize" bytes to each block.
-			 */
-			source.limit(min(source.position() + this.getBlockSize().getLength(), originalLimit));
-			block.put(source);
-		}
+		FileUtilities.writeTo(source, blocks, destinationOffset);
 	}
 
 	/**
@@ -595,6 +625,7 @@ public final class FileSystem implements AutoCloseable {
 	 * @param source the channel for reading a file on the "real" file system.
 	 * @throws IOException if an I/O error occurs.
 	 * @see #writeTo(long, ByteBuffer)
+	 * @see #writeTo(long, ByteBuffer, long)
 	 */
 	void writeTo(final long firstBlockId, final FileChannel source) throws IOException {
 		final List<MappedByteBuffer> blocks = this.mapBlocks(firstBlockId);

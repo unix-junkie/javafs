@@ -8,6 +8,7 @@ import static com.github.unix_junkie.javafs.FileType.FILE;
 import static com.github.unix_junkie.javafs.FileType.SYMBOLIC_LINK;
 import static java.lang.Boolean.FALSE;
 import static java.lang.Boolean.TRUE;
+import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.nio.file.Files.createSymbolicLink;
 import static java.nio.file.Files.createTempFile;
@@ -21,8 +22,11 @@ import static java.nio.file.Paths.get;
 import static java.util.logging.Level.WARNING;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.attribute.UserPrincipal;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -155,5 +159,85 @@ public abstract class FileUtilities {
 		assert symbolicLinksSupported != null;
 
 		return symbolicLinksSupported.booleanValue();
+	}
+
+	/**
+	 * <p>Returns how many blocks of size {@code blockSize} will be required
+	 * to store data of length {@code dataLength}.</p>
+	 *
+	 * @param dataLength the length of the data chunk.
+	 * @param blockSize the block size.
+	 * @return how many blocks of size {@code blockSize} will be required to
+	 *         store data of length {@code dataLength}.
+	 */
+	static long getBlockCount(final long dataLength, final long blockSize) {
+		if (blockSize <= 0) {
+			throw new IllegalArgumentException(String.valueOf(blockSize));
+		}
+
+		if (dataLength == 0) {
+			/*
+			 * Even an empty file will occupy a block on the file system.
+			 */
+			return 1;
+		}
+
+		final long blockCount = dataLength / blockSize;
+		return dataLength % blockSize == 0
+				? blockCount
+				: blockCount + 1;
+	}
+
+	/**
+	 * <p>Writes file contents to the previously allocated blocks.</p>
+	 *
+	 * @param source the buffer which contains file contents.
+	 * @param destinations the blocks to write file contents to.
+	 * @param <T> the actual {@link ByteBuffer} descendant, e.g.: {@link
+	 *        MappedByteBuffer}.
+	 */
+	static <T extends ByteBuffer> void writeTo(final ByteBuffer source, final List<T> destinations) {
+		writeTo(source, destinations, 0L);
+	}
+
+	/**
+	 * <p>Appends file contents to the previously allocated blocks, starting
+	 * at {@code destinationOffset}.</p>
+	 *
+	 * @param source the buffer which contains file contents.
+	 * @param destinations the blocks to write file contents to.
+	 * @param destinationOffset the offset to start writing at.
+	 * @param <T> the actual {@link ByteBuffer} descendant, e.g.: {@link
+	 *        MappedByteBuffer}.
+	 */
+	static <T extends ByteBuffer> void writeTo(final ByteBuffer source, final List<T> destinations, final long destinationOffset) {
+		final int originalLimit = source.limit();
+		final int position = source.position();
+		if (originalLimit > 0 && originalLimit == position) {
+			throw new IllegalArgumentException(format("source not flipped: position = %d; limit = %d",
+					Integer.valueOf(position),
+					Integer.valueOf(originalLimit)));
+		}
+
+		long bytesToSkip = destinationOffset;
+		for (final ByteBuffer destination : destinations) {
+			/*
+			 * Write at most "blockSize" bytes to each block.
+			 */
+			final int blockSize = destination.limit();
+
+			if (bytesToSkip > blockSize) {
+				bytesToSkip -= blockSize;
+				continue;
+			}
+
+			assert bytesToSkip <= Integer.MAX_VALUE;
+			destination.position((int) bytesToSkip);
+
+			source.limit(min(source.position() + blockSize - (int) bytesToSkip, originalLimit));
+			destination.put(source);
+
+			bytesToSkip = 0;
+		}
 	}
 }
