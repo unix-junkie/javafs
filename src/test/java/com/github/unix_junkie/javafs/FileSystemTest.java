@@ -8,7 +8,13 @@ import static com.github.unix_junkie.javafs.FileSystem.getBlockAddressSize;
 import static com.github.unix_junkie.javafs.FileUtilities.getBlockCount;
 import static com.github.unix_junkie.javafs.FileUtilities.symbolicLinksSupported;
 import static com.github.unix_junkie.javafs.FileUtilities.writeTo;
+import static java.lang.Runtime.getRuntime;
+import static java.lang.System.gc;
 import static java.lang.System.getProperty;
+import static java.lang.System.nanoTime;
+import static java.lang.Thread.currentThread;
+import static java.lang.Thread.sleep;
+import static java.nio.channels.FileChannel.MapMode.READ_WRITE;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.Files.createSymbolicLink;
@@ -19,9 +25,12 @@ import static java.nio.file.Files.exists;
 import static java.nio.file.Files.isRegularFile;
 import static java.nio.file.Files.isSymbolicLink;
 import static java.nio.file.Files.readAllBytes;
+import static java.nio.file.Files.size;
 import static java.nio.file.Files.walkFileTree;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.Paths.get;
+import static java.nio.file.StandardOpenOption.READ;
+import static java.nio.file.StandardOpenOption.WRITE;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -36,7 +45,10 @@ import static org.junit.Assume.assumeTrue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.CharacterCodingException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
@@ -47,6 +59,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.LogManager;
@@ -56,6 +69,7 @@ import javax.annotation.Nullable;
 
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -296,6 +310,72 @@ public final class FileSystemTest {
 		}
 	}
 
+	@Ignore("Not yet implemented")
+	@Test
+	@SuppressWarnings("static-method")
+	public void testLargeFile() throws IOException, NoSuchAlgorithmException {
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path file = createTempFile(null, null);
+		try {
+			final MessageDigest md = MessageDigest.getInstance("SHA1");
+			@Nonnull
+			final byte digest[];
+
+			try (final FileChannel channel = FileChannel.open(file, READ, WRITE)) {
+				final Random random = new Random();
+				final MappedByteBuffer tail = channel.map(READ_WRITE, Integer.MAX_VALUE, 1);
+				tail.put((byte) 0x0);
+
+				/*
+				 * When filling a 2G file, block size of 65k is enough.
+				 */
+				final int blockSize = 0x10000;
+
+				final long fileSize = size(file);
+				assertEquals(0, fileSize % blockSize);
+				final ByteBuffer block = ByteBuffer.allocate(blockSize);
+				final long blockCount = fileSize / blockSize;
+				final long t0 = nanoTime();
+				try {
+					md.reset();
+
+					for (long blockId = 0; blockId < blockCount; blockId++) {
+						final MappedByteBuffer mappedBlock = channel.map(READ_WRITE, blockId * blockSize, blockSize);
+						random.nextBytes(block.array());
+						mappedBlock.put(block);
+						block.flip();
+
+						md.update(block);
+						block.flip();
+					}
+				} finally {
+					final long t1 = nanoTime();
+					System.out.println("Filled the 2G file in " + (t1  - t0) / 1000 / 1e3 + " ms.");
+					digest = md.digest();
+					System.out.println(toHexString(digest));
+				}
+			}
+
+			@Nonnull
+			@SuppressWarnings("null")
+			final Path p = createTempFile(null, ".javafs");
+			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
+				fs.getRoot().addChild(new FileSystemEntry(file));
+
+				final FileSystemEntry root = fs.getRoot();
+				System.out.println(root);
+				final FileSystemEntry child = root.list().iterator().next();
+
+				md.reset();
+				md.update(child.getData());
+				assertArrayEquals(digest, md.digest());
+			}
+		} finally {
+			deleteFile(file);
+		}
+	}
+
 	@Test
 	@SuppressWarnings("static-method")
 	public void testUnlinkFile() throws IOException {
@@ -527,6 +607,48 @@ public final class FileSystemTest {
 		@SuppressWarnings("null")
 		final String hexString = CharBuffer.wrap(hexChars).toString();
 		return hexString;
+	}
+
+	private static void deleteFile(final Path file) throws IOException {
+		try {
+			/*
+			 * On Windows, the attempt to delete a file which was
+			 * previously mmapped usually fails.
+			 *
+			 * For Sun JVM, it is possible to use the proprietary
+			 * API as a workaround
+			 * (see http://stackoverflow.com/questions/2972986):
+			 *
+			 * ((sun.nio.ch.DirectBuffer) buffer).cleaner().clean()
+			 */
+			delete(file);
+		} catch (final AccessDeniedException ade) {
+			getRuntime().addShutdownHook(new Thread(() -> {
+				for (int i = 0; i < 100; i++) {
+					try {
+						delete(file);
+						break;
+					} catch (final AccessDeniedException ade2) {
+						/*
+						 * Calling gc() here is essential: otherwise,
+						 * waiting for 10 seconds is not sufficient.
+						 */
+						gc();
+						try {
+							sleep(100);
+						} catch (final InterruptedException ie) {
+							/*
+							 * Re-set the interrupted status.
+							 */
+							currentThread().interrupt();
+						}
+					} catch (final IOException ioe) {
+						ioe.printStackTrace();
+						break;
+					}
+				}
+			}));
+		}
 	}
 
 	private static String newUniqueName(final int minimumLength) {
