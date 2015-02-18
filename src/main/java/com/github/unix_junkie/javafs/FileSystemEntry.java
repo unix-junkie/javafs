@@ -290,6 +290,7 @@ public final class FileSystemEntry {
 	 * @throws IOException if an I/O error occurs, particularly if {@code
 	 *         destination} is not large enough to accommodate the file
 	 *         contents.
+	 *  @see #getData()
 	 */
 	void writeDataTo(final ByteBuffer destination) throws IOException {
 		this.requireNotDetached();
@@ -302,6 +303,23 @@ public final class FileSystemEntry {
 		for (final MappedByteBuffer block : blocks) {
 			destination.put(block);
 		}
+	}
+
+	/**
+	 * <p>Returns file contents. Only suitable for files under 2G.</p>
+	 *
+	 * @return the file contents.
+	 * @throws IOException if an I/O error occurs.
+	 * @see #writeDataTo(ByteBuffer)
+	 * @see #getMetadata()
+	 */
+	ByteBuffer getData() throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
+		final ByteBuffer data = ByteBuffer.allocate((int) min(this.dataSize, Integer.MAX_VALUE));
+		this.writeDataTo(data);
+		data.flip();
+		return data;
 	}
 
 	/**
@@ -428,7 +446,15 @@ public final class FileSystemEntry {
 			final long blockCount = this.fileSystem.getBlockCount(this.firstBlockId);
 			assert blockCount > 1 : blockCount;
 
-			this.fileSystem.writeTo(this.firstBlockId, child.getMetadata(), this.dataSize);
+			@Nonnull
+			@SuppressWarnings("null")
+			final ByteBuffer inodeWithMetadata = ByteBuffer.allocate(this.fileSystem.getBlockAddressSize() + child.getMetadataSize());
+
+			this.fileSystem.writeInode(childInode, inodeWithMetadata);
+			child.writeMetadataTo(inodeWithMetadata);
+
+			inodeWithMetadata.flip();
+			this.fileSystem.writeTo(this.firstBlockId, inodeWithMetadata, this.dataSize);
 		} else {
 			/*
 			 * Get the last (incomplete) block, set its position and write.
@@ -441,6 +467,7 @@ public final class FileSystemEntry {
 			final int position = (int) this.dataSize % this.fileSystem.getBlockSize().getLength();
 			assert this.dataSize == 0 ^ position != 0;
 			lastBlock.position(position);
+
 			this.fileSystem.writeInode(childInode, lastBlock);
 			child.writeMetadataTo(lastBlock);
 		}
@@ -540,34 +567,37 @@ public final class FileSystemEntry {
 			return emptySet;
 		}
 
-		final Set<FileSystemEntry> children = new LinkedHashSet<>();
+		if (this.dataSize > Integer.MAX_VALUE) {
+			// TODO: Implement for directories spanning more than 2G
+			LOGGER.severe(format("Directories larger than 2G are not supported: %d", Long.valueOf(this.dataSize)));
+			throw new UnsupportedOperationException();
+		}
 
 		final List<MappedByteBuffer> blocks = this.fileSystem.mapBlocks(this.firstBlockId);
 		final int blockCount = blocks.size();
-		if (blockCount == 1) {
-			@Nonnull
-			@SuppressWarnings("null")
-			final MappedByteBuffer block = blocks.iterator().next();
+		@Nonnull
+		@SuppressWarnings("null")
+		final ByteBuffer contents = blockCount == 1 ? blocks.iterator().next() : this.getData();
+		return this.list(contents);
+	}
 
-			long bytesRead = 0L;
-			while (bytesRead < this.dataSize) {
-				final long inode = this.fileSystem.readInode(block);
-				bytesRead += this.fileSystem.getBlockAddressSize();
+	private Set<FileSystemEntry> list(final ByteBuffer contents) throws IOException {
+		final Set<FileSystemEntry> children = new LinkedHashSet<>();
 
-				final FileSystemEntry child = readMetadataFrom(block);
-				bytesRead += child.getMetadataSize();
+		long bytesRead = 0L;
+		while (bytesRead < this.dataSize) {
+			final long inode = this.fileSystem.readInode(contents);
+			bytesRead += this.fileSystem.getBlockAddressSize();
 
-				child.setFileSystem(this.fileSystem);
-				child.setFirstBlockId(inode);
-				children.add(child);
-			}
+			final FileSystemEntry child = readMetadataFrom(contents);
+			bytesRead += child.getMetadataSize();
 
-			assert bytesRead == this.dataSize : bytesRead;
-		} else {
-			// XXX: Implement for directories spanning more than one block
-			LOGGER.severe(format("Unable to deal with %d blocks while growing a directory", Integer.valueOf(blockCount)));
-			throw new UnsupportedOperationException();
+			child.setFileSystem(this.fileSystem);
+			child.setFirstBlockId(inode);
+			children.add(child);
 		}
+
+		assert bytesRead == this.dataSize : bytesRead;
 
 		return children;
 	}
@@ -595,12 +625,7 @@ public final class FileSystemEntry {
 		/*
 		 * Only applicable to symbolic links under 2G.
 		 */
-		@Nonnull
-		@SuppressWarnings("null")
-		final ByteBuffer contents = ByteBuffer.allocate((int) min(this.dataSize, Integer.MAX_VALUE));
-		this.writeDataTo(contents);
-		contents.flip();
-		return get(UTF_8.newDecoder().decode(contents).toString());
+		return get(UTF_8.newDecoder().decode(this.getData()).toString());
 	}
 
 	/**

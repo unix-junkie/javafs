@@ -186,6 +186,31 @@ public final class FileSystemTest {
 
 	@Test
 	@SuppressWarnings("static-method")
+	public void testDirectoryGrowth() throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path p = createTempFile(null, ".javafs");
+		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
+			final FileSystemEntry root = fs.getRoot();
+			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
+
+			final String name = newUniqueName(2 * fs.getBlockSize().getLength());
+			final FileSystemEntry child = FileSystemEntry.newDirectory(name);
+			root.addChild(child);
+
+			/*
+			 * Re-read the root directory: make sure all values come from disk.
+			 */
+			final FileSystemEntry root2 = fs.getRoot();
+			assertEquals(fs.getBlockCount(0L), root2.getBlockCount());
+			assertEquals(fs.getBlockAddressSize() + child.getMetadataSize(), root2.getDataSize());
+			System.out.println(root2);
+			System.out.println(root2.list().iterator().next());
+		}
+	}
+
+	@Test
+	@SuppressWarnings("static-method")
 	public void testAddReadFile() throws IOException, NoSuchAlgorithmException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -230,13 +255,8 @@ public final class FileSystemTest {
 
 			for (final FileSystemEntry child : children) {
 				System.out.println(child);
-				@Nonnull
-				@SuppressWarnings("null")
-				final ByteBuffer contents = ByteBuffer.allocate((int) child.getDataSize());
-				child.writeDataTo(contents);
-				contents.flip();
 				md.reset();
-				md.update(contents);
+				md.update(child.getData());
 				@Nonnull
 				@SuppressWarnings("null")
 				final byte digest[] = md.digest();
@@ -408,9 +428,9 @@ public final class FileSystemTest {
 			/*
 			 * Re-read the root directory: make sure all values come from disk.
 			 */
-			assertEquals(fs.getBlockCount(0L), fs.getRoot().getBlockCount());
-
-			System.out.println(root);
+			final FileSystemEntry root2 = fs.getRoot();
+			assertEquals(fs.getBlockCount(0L), root2.getBlockCount());
+			System.out.println(root2);
 		}
 
 		@Nonnull
@@ -426,9 +446,9 @@ public final class FileSystemTest {
 			/*
 			 * Re-read the root directory: make sure all values come from disk.
 			 */
-			assertEquals(fs.getBlockCount(0L), fs.getRoot().getBlockCount());
-
-			System.out.println(root);
+			final FileSystemEntry root2 = fs.getRoot();
+			assertEquals(fs.getBlockCount(0L), root2.getBlockCount());
+			System.out.println(root2);
 		}
 	}
 
