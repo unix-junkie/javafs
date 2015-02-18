@@ -227,13 +227,14 @@ public final class FileSystemTest {
 	@Test
 	@SuppressWarnings("static-method")
 	public void testAddReadFile() throws IOException, NoSuchAlgorithmException {
+		final Map<String, String> sha1sums = new LinkedHashMap<>();
+
+		final MessageDigest md = MessageDigest.getInstance("SHA1");
+
 		@Nonnull
 		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-			final Map<String, String> sha1sums = new LinkedHashMap<>();
-
-			final MessageDigest md = MessageDigest.getInstance("SHA1");
 			walkFileTree(get(getProperty("user.dir", ".")), new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(@Nullable final Path file,
@@ -261,7 +262,12 @@ public final class FileSystemTest {
 					return CONTINUE;
 				}
 			});
+		}
 
+		/*
+		 * Re-mount the file system.
+		 */
+		try (final FileSystem fs = FileSystem.mount(p)) {
 			final Directory root = fs.getRoot();
 			System.out.println(root);
 			final Set<FileSystemEntry> children = root.list();

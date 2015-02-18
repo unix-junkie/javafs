@@ -127,4 +127,13 @@ public enum BlockSize {
 		assert maximum != null;
 		return maximum;
 	}
+
+	public static BlockSize valueOf(final int length) {
+		for (final BlockSize blockSize : values()) {
+			if (blockSize.getLength() == length) {
+				return blockSize;
+			}
+		}
+		throw new IllegalArgumentException(format("Unsupported block size: %d", Integer.valueOf(length)));
+	}
 }

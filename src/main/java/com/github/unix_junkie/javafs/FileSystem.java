@@ -45,6 +45,10 @@ public final class FileSystem implements AutoCloseable {
 
 	private static final short SECTOR_SIZE = 512;
 
+	private static final byte METADATA_OFFSET = 17;
+
+	private static final byte METADATA_LENGTH = 14;
+
 	@Nonnull
 	private final FileChannel channel;
 
@@ -81,38 +85,83 @@ public final class FileSystem implements AutoCloseable {
 		@Nonnull
 		@SuppressWarnings("null")
 		final FileChannel channel = FileChannel.open(path, options);
-		final FileSystem fileSystem = new FileSystem(channel, dataAreaLength, blockSize);
-		final long fullFileLength = fileSystem.getLength();
-		/*
-		 * Set file size.
-		 */
-		channel.position(fullFileLength - 1).write(ByteBuffer.wrap(new byte[] {0x0}));
+		try {
+			final FileSystem fileSystem = new FileSystem(channel, dataAreaLength, blockSize);
+			final long fullFileLength = fileSystem.getLength();
+			/*
+			 * Set file size.
+			 */
+			channel.position(fullFileLength - 1).write(ByteBuffer.wrap(new byte[] {0x0}));
 
-		fileSystem.writeBootSector();
+			fileSystem.writeBootSector();
 
-		/*
-		 * Write root directory.
-		 */
-		final FileSystemEntry root = new Directory("");
-		final long rootDirectorySize = root.getDataSize();
-		assert rootDirectorySize == 0 : rootDirectorySize;
+			/*
+			 * Write root directory.
+			 */
+			final FileSystemEntry root = new Directory("");
+			final long rootDirectorySize = root.getDataSize();
+			assert rootDirectorySize == 0 : rootDirectorySize;
 
-		root.setFileSystem(fileSystem);
-		final long blockCount = root.getBlockCount();
-		assert blockCount == 1 : blockCount;
+			root.setFileSystem(fileSystem);
+			final long blockCount = root.getBlockCount();
+			assert blockCount == 1 : blockCount;
 
-		final long rootBlockId = fileSystem.allocateBlocks(blockCount);
-		assert rootBlockId == 0 : rootBlockId;
-		root.setFirstBlockId(rootBlockId);
+			final long rootBlockId = fileSystem.allocateBlocks(blockCount);
+			assert rootBlockId == 0 : rootBlockId;
+			root.setFirstBlockId(rootBlockId);
 
-		final int bootSectorSize = fileSystem.getBootSectorSize();
-		final MappedByteBuffer bootSector = channel.map(READ_WRITE, 0, bootSectorSize);
-		bootSector.position(bootSectorSize / 2);
-		root.writeMetadataTo(bootSector);
+			final int bootSectorSize = fileSystem.getBootSectorSize();
+			final MappedByteBuffer bootSector = channel.map(READ_WRITE, 0, bootSectorSize);
+			bootSector.position(bootSectorSize / 2);
+			root.writeMetadataTo(bootSector);
 
-		fileSystem.printStats(System.out);
+			fileSystem.printStats(System.out);
 
-		return fileSystem;
+			return fileSystem;
+		} catch (final IOException ioe) {
+			try {
+				throw ioe;
+			} finally {
+				channel.close();
+			}
+		}
+	}
+
+	public static FileSystem mount(final Path path) throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
+		final FileChannel channel = FileChannel.open(path, READ, WRITE);
+		try {
+			final MappedByteBuffer metadata = channel.map(READ_ONLY, METADATA_OFFSET, METADATA_LENGTH);
+			channel.position(METADATA_OFFSET);
+			final byte major = metadata.get();
+			final byte minor = metadata.get();
+			final long dataAreaLength = metadata.getLong();
+			final BlockSize blockSize;
+			try {
+				blockSize = BlockSize.valueOf(metadata.getInt());
+			} catch (final IllegalArgumentException iae) {
+				throw new IOException(iae.getMessage(), iae);
+			}
+
+			final FileSystem fileSystem = new FileSystem(channel, dataAreaLength, blockSize);
+			if (major != fileSystem.getVersionMajor()
+					|| minor != fileSystem.getVersionMinor()) {
+				throw new IOException(format("Version %d.%d not supported.",
+						Byte.valueOf(major),
+						Byte.valueOf(minor)));
+			}
+
+			fileSystem.printStats(System.out);
+
+			return fileSystem;
+		} catch (final IOException ioe) {
+			try {
+				throw ioe;
+			} finally {
+				channel.close();
+			}
+		}
 	}
 
 	public BlockSize getBlockSize() {
