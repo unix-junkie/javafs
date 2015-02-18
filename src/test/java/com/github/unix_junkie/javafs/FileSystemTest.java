@@ -388,12 +388,48 @@ public final class FileSystemTest {
 
 	@Test
 	@SuppressWarnings("static-method")
-	public void testBlockCount() {
+	public void testBlockCount() throws IOException {
 		final long blockSize = 16;
 		assertEquals(1, getBlockCount(0, blockSize));
 		assertEquals(1, getBlockCount(5, blockSize));
 		assertEquals(1, getBlockCount(16, blockSize));
 		assertEquals(2, getBlockCount(17, blockSize));
+
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path p0 = createTempFile(null, ".javafs");
+		try (final FileSystem fs = FileSystem.create(p0, 1024L * 1024 - 1)) {
+			final FileSystemEntry root = fs.getRoot();
+			assertEquals("Empty directory should have a zero size", 0, root.getSize());
+
+			final String name = newUniqueName(50);
+			root.addChild(FileSystemEntry.newDirectory(name));
+
+			/*
+			 * Re-read the root directory: make sure all values come from disk.
+			 */
+			assertEquals(fs.getBlockCount(0L), fs.getRoot().getBlockCount());
+
+			System.out.println(root);
+		}
+
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path p1 = createTempFile(null, ".javafs");
+		try (final FileSystem fs = FileSystem.create(p1, 1024L * 1024 - 1)) {
+			final FileSystemEntry root = fs.getRoot();
+			assertEquals("Empty directory should have a zero size", 0, root.getSize());
+
+			final String name = newUniqueName(2 * fs.getBlockSize().getLength());
+			root.addChild(FileSystemEntry.newDirectory(name));
+
+			/*
+			 * Re-read the root directory: make sure all values come from disk.
+			 */
+			assertEquals(fs.getBlockCount(0L), fs.getRoot().getBlockCount());
+
+			System.out.println(root);
+		}
 	}
 
 	@Test

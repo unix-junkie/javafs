@@ -214,6 +214,15 @@ public final class FileSystemEntry {
 				creationTime, creationTime, name);
 	}
 
+	ByteBuffer getMetadata() throws IOException {
+		@Nonnull
+		@SuppressWarnings("null")
+		final ByteBuffer metadata = ByteBuffer.allocate(this.getMetadataLength());
+		this.writeMetadataTo(metadata);
+		metadata.flip();
+		return metadata;
+	}
+
 	static FileSystemEntry readMetadataFrom(final ByteBuffer source) throws IOException {
 		final int oldPosition = source.position();
 
@@ -253,7 +262,7 @@ public final class FileSystemEntry {
 		 */
 		final int oldPosition = destination.position();
 
-		destination.putInt(this.getDataLength());
+		destination.putInt(this.getMetadataLength());
 		final short typeAndAttributes = (short) ((short) (this.type.ordinal() << 12) | this.attributes.getValue());
 		destination.putShort(typeAndAttributes);
 		destination.put(this.numberOfLinks);
@@ -313,7 +322,7 @@ public final class FileSystemEntry {
 	 *         data area (or boot sector for the root directory).
 	 * @throws IOException if an I/O error occurs.
 	 */
-	public int getDataLength() throws IOException {
+	int getMetadataLength() throws IOException {
 		return NAME_OFFSET + this.getEncodedName().limit();
 	}
 
@@ -346,7 +355,7 @@ public final class FileSystemEntry {
 		 * Find out whether parent directory needs to grow
 		 * (e. g. file names longer than block size)
 		 */
-		final int sizeIncrement = this.fileSystem.getBlockAddressSize() + child.getDataLength();
+		final int sizeIncrement = this.fileSystem.getBlockAddressSize() + child.getMetadataLength();
 		final long oldBlockCount = this.getBlockCount();
 		LOGGER.finest(format("Parent directory (%d block(s)) will grow for %d byte(s)", Long.valueOf(oldBlockCount), Integer.valueOf(sizeIncrement)));
 		final int blockSize = this.fileSystem.getBlockSize().getLength();
@@ -415,17 +424,17 @@ public final class FileSystemEntry {
 			/*
 			 * The data area may (and most probably will) be non-contiguous.
 			 * At best we can have an array of mapped buffers to write to.
-			 *
-			 * XXX: Implement for child entries larger than 1 block
 			 */
-			final List<MappedByteBuffer> blocks = this.fileSystem.mapBlocks(this.firstBlockId);
-			final int blockCount = blocks.size();
+			final long blockCount = this.fileSystem.getBlockCount(this.firstBlockId);
 			assert blockCount > 1 : blockCount;
-			LOGGER.severe(format("Unable to deal with %d blocks while growing a directory", Integer.valueOf(blockCount)));
-			throw new UnsupportedOperationException();
+
+			this.fileSystem.writeTo(this.firstBlockId, child.getMetadata(), this.size);
 		} else {
 			/*
 			 * Get the last (incomplete) block, set its position and write.
+			 *
+			 * This may be a little bit faster than iterating over
+			 * each block occupied by the parent directory.
 			 */
 			final long lastBlockId = this.fileSystem.getLastBlockId(this.firstBlockId);
 			final MappedByteBuffer lastBlock = this.fileSystem.mapBlock(lastBlockId);
@@ -468,7 +477,7 @@ public final class FileSystemEntry {
 		assert matchingChildren.size() == 1;
 		final FileSystemEntry matchingChild = matchingChildren.iterator().next();
 
-		final int sizeDecrement = this.fileSystem.getBlockAddressSize() + matchingChild.getDataLength();
+		final int sizeDecrement = this.fileSystem.getBlockAddressSize() + matchingChild.getMetadataLength();
 
 		this.fileSystem.freeBlocks(matchingChild.firstBlockId);
 		matchingChild.setFileSystem(null);
@@ -546,7 +555,7 @@ public final class FileSystemEntry {
 				bytesRead += this.fileSystem.getBlockAddressSize();
 
 				final FileSystemEntry child = readMetadataFrom(block);
-				bytesRead += child.getDataLength();
+				bytesRead += child.getMetadataLength();
 
 				child.setFileSystem(this.fileSystem);
 				child.setFirstBlockId(inode);
