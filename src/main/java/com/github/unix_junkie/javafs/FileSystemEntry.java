@@ -350,7 +350,7 @@ public final class FileSystemEntry {
 		final long oldBlockCount = this.getBlockCount();
 		LOGGER.finest(format("Parent directory (%d block(s)) will grow for %d byte(s)", Long.valueOf(oldBlockCount), Integer.valueOf(sizeIncrement)));
 		final int blockSize = this.fileSystem.getBlockSize().getLength();
-		final long newBlockCount = (this.size + sizeIncrement) / blockSize + 1;
+		final long newBlockCount = FileUtilities.getBlockCount(this.size + sizeIncrement, blockSize);
 		final boolean growthRequired = newBlockCount != oldBlockCount;
 		if (growthRequired) {
 			/*
@@ -360,7 +360,7 @@ public final class FileSystemEntry {
 			LOGGER.finest(format("Parent directory will span %d block(s)", Long.valueOf(newBlockCount)));
 			this.fileSystem.growInode(this.firstBlockId, newBlockCount - oldBlockCount);
 		}
-		final long childBlockCount = child.size / blockSize + 1;
+		final long childBlockCount = FileUtilities.getBlockCount(child.size, blockSize);
 
 		/*
 		 * Check for free space.
@@ -515,7 +515,7 @@ public final class FileSystemEntry {
 		this.requireNotDetached();
 
 		final int blockSize = this.fileSystem.getBlockSize().getLength();
-		return this.size / blockSize + 1;
+		return FileUtilities.getBlockCount(this.size, blockSize);
 	}
 
 	public Set<FileSystemEntry> list() throws IOException {

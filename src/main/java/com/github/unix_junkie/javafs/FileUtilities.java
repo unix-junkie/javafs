@@ -156,4 +156,31 @@ public abstract class FileUtilities {
 
 		return symbolicLinksSupported.booleanValue();
 	}
+
+	/**
+	 * <p>Returns how many blocks of size {@code blockSize} will be required
+	 * to store data of length {@code dataLength.</p>
+	 *
+	 * @param dataLength the length of the data chunk.
+	 * @param blockSize the block size.
+	 * @return how many blocks of size {@code blockSize} will be required to
+	 *         store data of length {@code dataLength.
+	 */
+	public static long getBlockCount(final long dataLength, final long blockSize) {
+		if (blockSize <= 0) {
+			throw new IllegalArgumentException(String.valueOf(blockSize));
+		}
+
+		if (dataLength == 0) {
+			/*
+			 * Even an empty file will occupy a block on the file system.
+			 */
+			return 1;
+		}
+
+		final long blockCount = dataLength / blockSize;
+		return dataLength % blockSize == 0
+				? blockCount
+				: blockCount + 1;
+	}
 }

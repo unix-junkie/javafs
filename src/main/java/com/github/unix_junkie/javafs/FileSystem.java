@@ -4,6 +4,7 @@
 package com.github.unix_junkie.javafs;
 
 import static com.github.unix_junkie.javafs.BlockSize.guessBlockSize;
+import static com.github.unix_junkie.javafs.FileUtilities.getBlockCount;
 import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.lang.System.nanoTime;
@@ -194,9 +195,7 @@ public final class FileSystem implements AutoCloseable {
 
 	public long getInodeTableSizeRounded() {
 		final long inodeTableSize = this.getInodeTableSize();
-		return inodeTableSize % SECTOR_SIZE == 0
-				? inodeTableSize
-				: (inodeTableSize / SECTOR_SIZE + 1) * SECTOR_SIZE;
+		return getBlockCount(inodeTableSize, SECTOR_SIZE) * SECTOR_SIZE;
 	}
 
 	public long getDataAreaLength() {

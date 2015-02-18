@@ -5,6 +5,7 @@ package com.github.unix_junkie.javafs;
 
 import static com.github.unix_junkie.javafs.BlockSize.guessBlockSize;
 import static com.github.unix_junkie.javafs.FileSystem.getBlockAddressSize;
+import static com.github.unix_junkie.javafs.FileUtilities.getBlockCount;
 import static com.github.unix_junkie.javafs.FileUtilities.symbolicLinksSupported;
 import static java.lang.System.getProperty;
 import static java.nio.file.FileVisitResult.CONTINUE;
@@ -378,6 +379,16 @@ public final class FileSystemTest {
 		} finally {
 			delete(link);
 		}
+	}
+
+	@Test
+	@SuppressWarnings("static-method")
+	public void testBlockCount() {
+		final long blockSize = 16;
+		assertEquals(1, getBlockCount(0, blockSize));
+		assertEquals(1, getBlockCount(5, blockSize));
+		assertEquals(1, getBlockCount(16, blockSize));
+		assertEquals(2, getBlockCount(17, blockSize));
 	}
 
 	static String toHexString(final byte bytes[]) {
