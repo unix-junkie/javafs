@@ -162,7 +162,7 @@ public final class FileSystemTest {
 		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-			final FileSystemEntry root = fs.getRoot();
+			final Directory root = fs.getRoot();
 			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			System.out.println(root);
@@ -186,7 +186,7 @@ public final class FileSystemTest {
 			/*
 			 * Re-read the root directory: make sure all values come from disk.
 			 */
-			final FileSystemEntry root2 = fs.getRoot();
+			final Directory root2 = fs.getRoot();
 			System.out.println(root2);
 			assertNotEquals(0, root2.getDataSize());
 			assertEquals(root.getDataSize(), root2.getDataSize());
@@ -206,7 +206,7 @@ public final class FileSystemTest {
 		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-			final FileSystemEntry root = fs.getRoot();
+			final Directory root = fs.getRoot();
 			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(2 * fs.getBlockSize().getLength());
@@ -216,7 +216,7 @@ public final class FileSystemTest {
 			/*
 			 * Re-read the root directory: make sure all values come from disk.
 			 */
-			final FileSystemEntry root2 = fs.getRoot();
+			final Directory root2 = fs.getRoot();
 			assertEquals(fs.getBlockCount(0L), root2.getBlockCount());
 			assertEquals(fs.getBlockAddressSize() + child.getMetadataSize(), root2.getDataSize());
 			System.out.println(root2);
@@ -262,7 +262,7 @@ public final class FileSystemTest {
 				}
 			});
 
-			final FileSystemEntry root = fs.getRoot();
+			final Directory root = fs.getRoot();
 			System.out.println(root);
 			final Set<FileSystemEntry> children = root.list();
 
@@ -300,7 +300,7 @@ public final class FileSystemTest {
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
 			fs.getRoot().addChild(new File(file));
 
-			final FileSystemEntry root = fs.getRoot();
+			final Directory root = fs.getRoot();
 			System.out.println(root);
 			final FileSystemEntry child = root.list().iterator().next();
 
@@ -363,7 +363,7 @@ public final class FileSystemTest {
 			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
 				fs.getRoot().addChild(new File(file));
 
-				final FileSystemEntry root = fs.getRoot();
+				final Directory root = fs.getRoot();
 				System.out.println(root);
 				final FileSystemEntry child = root.list().iterator().next();
 
@@ -403,7 +403,7 @@ public final class FileSystemTest {
 				}
 			});
 
-			final FileSystemEntry root = fs.getRoot();
+			final Directory root = fs.getRoot();
 
 			try {
 				root.unlink("foo");
@@ -482,7 +482,7 @@ public final class FileSystemTest {
 			@SuppressWarnings("null")
 			final Path p = createTempFile(null, ".javafs");
 			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-				final FileSystemEntry symlinkEntry0 = new SymbolicLink(link);
+				final SymbolicLink symlinkEntry0 = new SymbolicLink(link);
 				/*
 				 * Read the target of a detached entry.
 				 */
@@ -494,12 +494,12 @@ public final class FileSystemTest {
 				/*
 				 * Re-read the root directory: make sure all values come from disk.
 				 */
-				final FileSystemEntry root = fs.getRoot();
+				final Directory root = fs.getRoot();
 				System.out.println(root);
 
 				final Set<FileSystemEntry> children = root.list();
 				assertEquals(1, children.size());
-				final FileSystemEntry symlinkEntry1 = children.iterator().next();
+				final SymbolicLink symlinkEntry1 = (SymbolicLink) children.iterator().next();
 
 				System.out.println(symlinkEntry1);
 
@@ -529,7 +529,7 @@ public final class FileSystemTest {
 		@SuppressWarnings("null")
 		final Path p0 = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p0, 1024L * 1024 - 1)) {
-			final FileSystemEntry root = fs.getRoot();
+			final Directory root = fs.getRoot();
 			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(50);
@@ -547,7 +547,7 @@ public final class FileSystemTest {
 		@SuppressWarnings("null")
 		final Path p1 = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p1, 1024L * 1024 - 1)) {
-			final FileSystemEntry root = fs.getRoot();
+			final Directory root = fs.getRoot();
 			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(2 * fs.getBlockSize().getLength());

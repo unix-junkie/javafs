@@ -323,11 +323,11 @@ public final class FileSystem implements AutoCloseable {
 		}
 	}
 
-	public FileSystemEntry getRoot() throws IOException {
+	public Directory getRoot() throws IOException {
 		final int bootSectorSize = this.getBootSectorSize();
 		final MappedByteBuffer bootSector = this.channel.map(READ_WRITE, 0, bootSectorSize);
 		bootSector.position(bootSectorSize / 2);
-		final FileSystemEntry root = FileSystemEntry.readMetadataFrom(bootSector);
+		final Directory root = (Directory) FileSystemEntry.readMetadataFrom(bootSector);
 		root.setFileSystem(this);
 		root.setFirstBlockId(0L);
 		return root;
