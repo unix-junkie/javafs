@@ -170,7 +170,7 @@ public abstract class FileUtilities {
 	 * @return how many blocks of size {@code blockSize} will be required to
 	 *         store data of length {@code dataLength.
 	 */
-	public static long getBlockCount(final long dataLength, final long blockSize) {
+	static long getBlockCount(final long dataLength, final long blockSize) {
 		if (blockSize <= 0) {
 			throw new IllegalArgumentException(String.valueOf(blockSize));
 		}
