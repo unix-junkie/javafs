@@ -5,7 +5,6 @@ package com.github.unix_junkie.javafs;
 
 import static com.github.unix_junkie.javafs.BlockSize.guessBlockSize;
 import static com.github.unix_junkie.javafs.FileUtilities.getBlockCount;
-import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.lang.System.nanoTime;
 import static java.nio.channels.FileChannel.MapMode.READ_ONLY;
@@ -569,22 +568,23 @@ public final class FileSystem implements AutoCloseable {
 	 * @see #writeTo(long, FileChannel)
 	 */
 	void writeTo(final long firstBlockId, final ByteBuffer source) throws IOException {
-		final int originalLimit = source.limit();
-		final int position = source.position();
-		if (originalLimit > 0 && originalLimit == position) {
-			throw new IllegalArgumentException(format("source not flipped: position = %d; limit = %d",
-					Integer.valueOf(position),
-					Integer.valueOf(originalLimit)));
-		}
+		this.writeTo(firstBlockId, source, 0L);
+	}
 
+	/**
+	 * <p>Appends file's contents to the previously allocated blocks,
+	 * starting at {@code destinationOffset}.</p>
+	 *
+	 * @param firstBlockId the id of the first block allocated for the file.
+	 * @param source the buffer which contains file's contents.
+	 * @param destinationOffset the offset to start writing at, usually
+	 *        previous value of file size.
+	 * @throws IOException if an I/O error occurs.
+	 * @see #writeTo(long, FileChannel)
+	 */
+	void writeTo(final long firstBlockId, final ByteBuffer source, final long destinationOffset) throws IOException {
 		final List<MappedByteBuffer> blocks = this.mapBlocks(firstBlockId);
-		for (final MappedByteBuffer block : blocks) {
-			/*
-			 * Write at most "blockSize" bytes to each block.
-			 */
-			source.limit(min(source.position() + this.getBlockSize().getLength(), originalLimit));
-			block.put(source);
-		}
+		FileUtilities.writeTo(source, blocks, destinationOffset);
 	}
 
 	/**

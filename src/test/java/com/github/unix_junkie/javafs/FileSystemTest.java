@@ -7,7 +7,9 @@ import static com.github.unix_junkie.javafs.BlockSize.guessBlockSize;
 import static com.github.unix_junkie.javafs.FileSystem.getBlockAddressSize;
 import static com.github.unix_junkie.javafs.FileUtilities.getBlockCount;
 import static com.github.unix_junkie.javafs.FileUtilities.symbolicLinksSupported;
+import static com.github.unix_junkie.javafs.FileUtilities.writeTo;
 import static java.lang.System.getProperty;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.Files.createSymbolicLink;
 import static java.nio.file.Files.createTempDirectory;
@@ -33,13 +35,16 @@ import static org.junit.Assume.assumeTrue;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -389,6 +394,39 @@ public final class FileSystemTest {
 		assertEquals(1, getBlockCount(5, blockSize));
 		assertEquals(1, getBlockCount(16, blockSize));
 		assertEquals(2, getBlockCount(17, blockSize));
+	}
+
+	@Test
+	@SuppressWarnings("static-method")
+	public void testWriteTo() throws CharacterCodingException {
+		final ByteBuffer entry0 = US_ASCII.newEncoder().encode(CharBuffer.wrap("Hello, World!"));
+		final ByteBuffer entry1 = US_ASCII.newEncoder().encode(CharBuffer.wrap("A quick brown fox jumps over a lazy dog."));
+
+		final int blockSize = 16;
+
+		assertTrue(entry0.limit() <= blockSize);
+
+		final ByteBuffer block0 = ByteBuffer.allocate(blockSize);
+		block0.put(entry0);
+		final int firstBlockBytesRemaining = block0.limit() - block0.position();
+
+		final int bytesPending = entry1.limit() - entry1.position();
+
+		assertTrue(bytesPending > firstBlockBytesRemaining);
+
+		final long newBlocksRequired = getBlockCount(bytesPending - firstBlockBytesRemaining, blockSize);
+		final List<ByteBuffer> blocks = new ArrayList<>();
+		blocks.add(block0);
+		for (long l = 0; l < newBlocksRequired; l++) {
+			blocks.add(ByteBuffer.allocate(blockSize));
+		}
+
+		writeTo(entry1, blocks, entry0.limit());
+
+		assertEquals("Hello, World!A q", US_ASCII.newDecoder().decode((ByteBuffer) blocks.get(0).flip()).toString());
+		assertEquals("uick brown fox j", US_ASCII.newDecoder().decode((ByteBuffer) blocks.get(1).flip()).toString());
+		assertEquals("umps over a lazy", US_ASCII.newDecoder().decode((ByteBuffer) blocks.get(2).flip()).toString());
+		assertEquals(" dog.",            US_ASCII.newDecoder().decode((ByteBuffer) blocks.get(3).flip()).toString());
 	}
 
 	static String toHexString(final byte bytes[]) {
