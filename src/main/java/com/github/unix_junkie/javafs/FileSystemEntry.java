@@ -296,6 +296,15 @@ public final class FileSystemEntry {
 		this.requireNotDetached();
 
 		final List<MappedByteBuffer> blocks = this.fileSystem.mapBlocks(this.firstBlockId);
+
+		if (destination.limit() - destination.position() == 0) {
+			/*
+			 * Empty file.
+			 */
+			assert blocks.size() == 1;
+			return;
+		}
+
 		final int remainder = (int) (this.dataSize % this.fileSystem.getBlockSize().getLength());
 		if (remainder != 0) {
 			blocks.get(blocks.size() - 1).limit(remainder);

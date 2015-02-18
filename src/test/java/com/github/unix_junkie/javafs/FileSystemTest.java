@@ -23,6 +23,7 @@ import static java.nio.file.Files.walkFileTree;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
 import static java.nio.file.Paths.get;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -263,6 +264,35 @@ public final class FileSystemTest {
 				final String sha1sum = toHexString(digest);
 				assertEquals(sha1sums.get(child.getName()), sha1sum);
 			}
+		}
+	}
+
+	@Test
+	@SuppressWarnings("static-method")
+	public void testEmptyFile() throws NoSuchAlgorithmException, IOException {
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path file = createTempFile(null, null);
+
+		final MessageDigest md = MessageDigest.getInstance("SHA1");
+
+		md.reset();
+		md.update(readAllBytes(file));
+		final byte digest[] = md.digest();
+
+		@Nonnull
+		@SuppressWarnings("null")
+		final Path p = createTempFile(null, ".javafs");
+		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
+			fs.getRoot().addChild(new FileSystemEntry(file));
+
+			final FileSystemEntry root = fs.getRoot();
+			System.out.println(root);
+			final FileSystemEntry child = root.list().iterator().next();
+
+			md.reset();
+			md.update(child.getData());
+			assertArrayEquals(digest, md.digest());
 		}
 	}
 
