@@ -32,7 +32,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
+ * <p>File system entry, a common superclass of {@link File}, {@link Directory}
+ * and {@link SymbolicLink}.</p>
+ *
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
+ * @see File
+ * @see Directory
+ * @see SymbolicLink
  */
 public abstract class FileSystemEntry {
 	/**
@@ -78,12 +84,22 @@ public abstract class FileSystemEntry {
 	@Nonnull
 	private final Date accessTime;
 
+	/**
+	 * The name of this file system entry w/o the directory part (the
+	 * <em>basename</em>).
+	 */
 	@Nonnull
 	protected final String name;
 
 	@Nullable
 	private ByteBuffer encodedName;
 
+	/**
+	 * For a {@linkplain #isDetached() detached} entry, may contain the
+	 * source of this entry at the external file system. For attached entries 
+	 * (i.e. those which have been already written to the {@linkplain
+	 * FileSystem local file system}) is always {@code null}.
+	 */
 	@Nullable
 	protected Path source;
 
@@ -101,6 +117,13 @@ public abstract class FileSystemEntry {
 	 */
 	protected long firstBlockId = -1;
 
+	/**
+	 * <p>Creates a detached file system entry, using an existing {@code
+	 * path} at the external file system.</p>
+	 *
+	 * @param source the source of this entry at the external file system.
+	 * @throws IOException if an I/O error occurs.
+	 */
 	protected FileSystemEntry(final Path source) throws IOException {
 		final BasicFileAttributes attrs = readAttributes(source, BasicFileAttributes.class, NOFOLLOW_LINKS);
 		if (attrs.isOther()) {
@@ -128,6 +151,22 @@ public abstract class FileSystemEntry {
 		this.source = source;
 	}
 
+	/**
+	 * <p>Creates a detached file system entry from the complete metadata.
+	 * </p>
+	 *
+	 * @param attributes POSIX attributes.
+	 * @param numberOfLinks number of hard links.
+	 * @param uid owner Id (UID).
+	 * @param gid group Id (GID).
+	 * @param dataSize the data length of this entry.
+	 * @param creationTime creation time.
+	 * @param modificationTime modification time.
+	 * @param accessTime access time.
+	 * @param name the name of this file or directory (just the last name in
+	 *        the pathname's name sequence).
+	 * @param encodedName {@code name} encoded into a byte array, or {@code null}.
+	 */
 	protected FileSystemEntry(final PosixAttributes attributes,
 			final byte numberOfLinks,
 			final short uid,
@@ -281,6 +320,9 @@ public abstract class FileSystemEntry {
 	 */
 	protected abstract void writeData() throws IOException;
 
+	/**
+	 * @return the type of this entry.
+	 */
 	protected abstract FileType getType();
 
 	/**
@@ -308,6 +350,10 @@ public abstract class FileSystemEntry {
 		return this.dataSize;
 	}
 
+	/**
+	 * @return the name of this file system entry w/o the directory part
+	 *         (the <em>basename</em>).
+	 */
 	public String getName() {
 		return this.name;
 	}
@@ -394,6 +440,10 @@ public abstract class FileSystemEntry {
 		return this.fileSystem == null;
 	}
 
+	/**
+	 * @throws IllegalStateException if this entry is detached, i. e. is not
+	 *         linked to the underlying local file system.
+	 */
 	protected final void requireNotDetached() {
 		if (this.isDetached()) {
 			throw new IllegalStateException("Detached file system entry");

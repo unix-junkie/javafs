@@ -18,6 +18,9 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
 /**
+ * <p>File attributes associated with files on file systems used by
+ * POSIX-compliant operating systems.</p>
+ *
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public final class PosixAttributes {
@@ -27,10 +30,23 @@ public final class PosixAttributes {
 
 	private final short value;
 
+	/**
+	 * <p>Extracts POSIX attributed of an existing file on an external file
+	 * system.</p>
+	 *
+	 * @param path the path of the external file.
+	 */
 	public PosixAttributes(final Path path) {
 		this(extractValue(path));
 	}
 
+	/**
+	 * <p>Extracts the POSIX attributes from the octal value supplied. For
+	 * example, {@code 0644} corresponds to {@code rw-r--r--}. Anything
+	 * beyond the lowest 12 bits is ignored.</p>
+	 *
+	 * @param value POSIX attributes in octal form.
+	 */
 	public PosixAttributes(final int value) {
 		/*
 		 * Make sure we only store 12 bits of information.

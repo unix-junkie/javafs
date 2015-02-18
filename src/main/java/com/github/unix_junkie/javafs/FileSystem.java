@@ -36,7 +36,14 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
+ * <p>An abstract representation of a mounted file system. Please use either of
+ * {@link #create(Path, long)}, {@link #create(Path, long, BlockSize)} and
+ * {@link #mount(Path)} factory methods to get a file system instance.</p>
+ *
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
+ * @see #create(Path, long)
+ * @see #create(Path, long, BlockSize)
+ * @see #mount(Path)
  */
 public final class FileSystem implements AutoCloseable {
 	@Nonnull
@@ -67,10 +74,37 @@ public final class FileSystem implements AutoCloseable {
 		this.blockSize = blockSize;
 	}
 
+	/**
+	 * <p>Creates a file system container specified by {@code path} and
+	 * returns the created file system. The file system will use the block
+	 * size which is the default for {@code length}. Use {@link #create(Path,
+	 * long, BlockSize)} is you need to specify a custom block size.</p>
+	 *
+	 * @param path the path of the file system container; will be truncated 
+	 *        if exists.
+	 * @param length the size of the file system container, in bytes.
+	 * @return the created file system.
+	 * @throws IOException if the underlying file channel can't be opened,
+	 *         or any other I/O error occurs.
+	 * @see #create(Path, long, BlockSize)
+	 */
 	public static FileSystem create(final Path path, final long length) throws IOException {
 		return create(path, length, guessBlockSize(length));
 	}
 
+	/**
+	 * <p>Creates a file system container specified by {@code path} and
+	 * returns the created file system.</p>
+	 *
+	 * @param path the path of the file system container; will be truncated 
+	 *        if exists.
+	 * @param length the size of the file system container, in bytes.
+	 * @param blockSize the file system block size.
+	 * @return the created file system.
+	 * @throws IOException if the underlying file channel can't be opened,
+	 *         or any other I/O error occurs.
+	 * @see #create(Path, long)
+	 */
 	public static FileSystem create(final Path path, final long length, final BlockSize blockSize) throws IOException {
 		final int blockLength = blockSize.getLength();
 		final long dataAreaLength = length % blockLength == 0
@@ -83,7 +117,7 @@ public final class FileSystem implements AutoCloseable {
 				? new OpenOption[] {READ, WRITE, TRUNCATE_EXISTING, CREATE}
 				: new OpenOption[] {READ, WRITE, CREATE_NEW, SPARSE};
 		@Nonnull
-		@SuppressWarnings("null")
+		@SuppressWarnings({ "null", "resource" })
 		final FileChannel channel = FileChannel.open(path, options);
 		try {
 			final FileSystem fileSystem = new FileSystem(channel, dataAreaLength, blockSize);
@@ -127,9 +161,21 @@ public final class FileSystem implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * <p>Mounts a file system container specified by {@code path} and
+	 * returns the mounted file system.</p>
+	 *
+	 * @param path the path of the file system container; will be truncated 
+	 *        if exists.
+	 * @return the mounted file system.
+	 * @throws IOException if the underlying file channel can't be opened,
+	 *         file system metadata is corrupted (invalid block size, etc.),
+	 *         file system version is not supported, or any other I/O error
+	 *         occurs.
+	 */
 	public static FileSystem mount(final Path path) throws IOException {
 		@Nonnull
-		@SuppressWarnings("null")
+		@SuppressWarnings({ "null", "resource" })
 		final FileChannel channel = FileChannel.open(path, READ, WRITE);
 		try {
 			final MappedByteBuffer metadata = channel.map(READ_ONLY, METADATA_OFFSET, METADATA_LENGTH);
@@ -164,6 +210,12 @@ public final class FileSystem implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * <p>Returns file system block size. Once the file system is created,
+	 * its block size can't be changed.</p>
+	 *
+	 * @return file system block size.
+	 */
 	public BlockSize getBlockSize() {
 		return this.blockSize;
 	}
@@ -222,20 +274,46 @@ public final class FileSystem implements AutoCloseable {
 		return 8; // "FAT64"
 	}
 
+	/**
+	 * <p>Returns the size of file system boot sector, in bytes.</p>
+	 *
+	 * @return the size of file system boot sector, in bytes.
+	 */
 	@SuppressWarnings("static-method")
 	public int getBootSectorSize() {
 		return SECTOR_SIZE;
 	}
 
+	/**
+	 * <p>Returns the size of the inode table ("FAT"), in bytes.</p>
+	 *
+	 * @return the size of the inode table ("FAT"), in bytes.
+	 * @see #getInodeTableSizeRounded()
+	 */
 	public long getInodeTableSize() {
 		return this.getTotalBlockCount() * this.getBlockAddressSize();
 	}
 
+	/**
+	 * <p>Returns the size of the inode table ("FAT") rounded to file system
+	 * sector size, in bytes. The file system sector size is 512 bytes.</p>
+	 *
+	 * @return the size of the inode table ("FAT") rounded to file system
+	 *         sector size, in bytes.
+	 * @see #getInodeTableSize()
+	 */
 	public long getInodeTableSizeRounded() {
 		final long inodeTableSize = this.getInodeTableSize();
 		return FileUtilities.getBlockCount(inodeTableSize, SECTOR_SIZE) * SECTOR_SIZE;
 	}
 
+	/**
+	 * <p>Returns the size of the data area (the area occupied by files),
+	 * in bytes.</p>
+	 *
+	 * @return the size of the data area (the area occupied by files), in
+	 *         bytes.
+	 */
 	public long getDataAreaLength() {
 		return this.dataAreaLength;
 	}
@@ -250,6 +328,8 @@ public final class FileSystem implements AutoCloseable {
 	}
 
 	/**
+	 * <p>Returns the total block count.</p>
+	 *
 	 * @return the total block count.
 	 * @see #getFreeBlockCount()
 	 */
@@ -257,16 +337,43 @@ public final class FileSystem implements AutoCloseable {
 		return this.dataAreaLength / this.blockSize.getLength();
 	}
 
+	/**
+	 * <p>Returns the file system major version number supported by this
+	 * file system driver.</p>
+	 *
+	 * @return the file system major version number supported by this file
+	 *         system driver.
+	 * @see #getVersionMinor()
+	 * @see #getVersion()
+	 */
 	@SuppressWarnings("static-method")
 	public byte getVersionMajor() {
 		return 1;
 	}
 
+	/**
+	 * <p>Returns the file system minor version number supported by this
+	 * file system driver.</p>
+	 *
+	 * @return the file system minor version number supported by this file
+	 *         system driver.
+	 * @see #getVersionMajor()
+	 * @see #getVersion()
+	 */
 	@SuppressWarnings("static-method")
 	public byte getVersionMinor() {
 		return 0;
 	}
 
+	/**
+	 * <p>Returns the file system version string supported by this file
+	 * system driver.</p>
+	 *
+	 * @return the file system version string supported by this file system
+	 *         driver.
+	 * @see #getVersionMajor()
+	 * @see #getVersionMinor()
+	 */
 	public String getVersion() {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -276,6 +383,8 @@ public final class FileSystem implements AutoCloseable {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * <p>Unmounts this file system.</p>
 	 *
 	 * @see AutoCloseable#close()
 	 */
@@ -319,6 +428,14 @@ public final class FileSystem implements AutoCloseable {
 		this.channel.position(0).write(bootSector);
 	}
 
+	/**
+	 * <p>Returns the number of files on this file system. The number
+	 * returned is at least 1 (empty file system with only a root directory).
+	 * </p>
+	 *
+	 * @return the number of files on this file system.
+	 * @throws IOException if an I/O error occurs.
+	 */
 	public long getFileCount() throws IOException {
 		final long t0 = nanoTime();
 		try {
@@ -372,6 +489,12 @@ public final class FileSystem implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * <p>Returns the file system's root directory.</p>
+	 *
+	 * @return the file system's root directory.
+	 * @throws IOException if an I/O error occurs.
+	 */
 	public Directory getRoot() throws IOException {
 		final int bootSectorSize = this.getBootSectorSize();
 		final MappedByteBuffer bootSector = this.channel.map(READ_WRITE, 0, bootSectorSize);
@@ -382,6 +505,15 @@ public final class FileSystem implements AutoCloseable {
 		return root;
 	}
 
+	/**
+	 * <p>Prints brief file system information to {@code out}.</p>
+	 *
+	 * @param out the {@code PrintStream} file system information should be
+	 *        printed to. 
+	 * @throws IOException if {@linkplain #getFileCount() file count} or
+	 *         {@linkplain #getFreeBlockCount() free block count} can't be
+	 *         determined, or any other I/O error occurs.
+	 */
 	public void printStats(@Nullable final PrintStream out) throws IOException {
 		if (out == null) {
 			return;

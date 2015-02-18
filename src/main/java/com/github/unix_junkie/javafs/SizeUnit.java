@@ -10,18 +10,49 @@ import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 
 /**
+ * <p>A {@code SizeUnit} represents sizes at a given level of granularity and
+ * provides methods to to convert those sizes to bytes.</p>
+ *
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public enum SizeUnit {
+	/**
+	 * Size unit representing an byte (B).
+	 */
 	B,
+	/**
+	 * Size unit representing an kilobyte (kB).
+	 */
 	K,
+	/**
+	 * Size unit representing an megabyte (MB).
+	 */
 	M,
+	/**
+	 * Size unit representing an gigabyte (GB).
+	 */
 	G,
+	/**
+	 * Size unit representing an terabyte (TB).
+	 */
 	T,
+	/**
+	 * Size unit representing an petabyte (PB).
+	 */
 	P,
+	/**
+	 * Size unit representing an exabyte (EB).
+	 */
 	E,
 	;
 
+	/**
+	 * <p>Converts the given size in the given unit to bytes.</p>
+	 *
+	 * @param size the size in the given {@code unit}.
+	 * @param unit the unit of the {@code size} argument.
+	 * @return the equivalent size, in bytes.
+	 */
 	public static long toBytes(final long size, final SizeUnit unit) {
 		// TODO: check for overflow, but still support the 8E limit.
 		switch (unit) {

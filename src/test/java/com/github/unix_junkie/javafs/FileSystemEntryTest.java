@@ -24,7 +24,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class FileSystemEntryTest {
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testBinaryFormat() throws IOException {
 		final FileSystemEntry link = new SymbolicLink(new PosixAttributes((short) 0777), (byte) 1, (short) 1021, (short) 1021, 11, new Date(), new Date(), new Date(), ".Xdefaults");
 		@Nonnull
@@ -52,7 +52,7 @@ public final class FileSystemEntryTest {
 	}
 
 	@Test
-	@SuppressWarnings({"static-method", "unused"})
+	@SuppressWarnings({"static-method", "unused", "javadoc"})
 	public void testInvalidName() {
 		try {
 			new File(new PosixAttributes((short) 0644), (byte) 1, (short) 1021, (short) 1021, 47, new Date(), new Date(), new Date(), "foo/bar");

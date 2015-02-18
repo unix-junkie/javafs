@@ -26,7 +26,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class SizeUnitTest {
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testparseSize() {
 		try {
 			parseSize(null);
@@ -71,7 +71,7 @@ public final class SizeUnitTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testToString() {
 		assertEquals("0B", SizeUnit.toString(0L));
 		assertEquals("2B", SizeUnit.toString(2L));

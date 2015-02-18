@@ -36,6 +36,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
+ * <p>Utilities related to file attributes manipulation.</p>
+ *
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public abstract class FileUtilities {
@@ -133,6 +135,14 @@ public abstract class FileUtilities {
 		}
 	}
 
+	/**
+	 * @return whether the external file system (or, more precisely, the
+	 *         volume used for temporary files, e.g.: {@code /tmp} on UNIX)
+	 *         supports symbolic links. The returned value is {@code true}
+	 *         for most Unices as well as Windows versions based on NT 6.x
+	 *         kernel (e.g.: Windows 7).
+	 * @throws IOException if an I/O error occurs.
+	 */
 	public static boolean symbolicLinksSupported() throws IOException {
 		if (symbolicLinksSupported == null) {
 			synchronized (SYMBOLIC_LINKS_SUPPORTED_LOCK) {
