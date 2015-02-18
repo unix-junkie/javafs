@@ -167,10 +167,10 @@ public final class FileSystemTest {
 
 			System.out.println(root);
 			final String name = newUniqueName(50);
-			root.addChild(FileSystemEntry.newDirectory(name));
+			root.addChild(new Directory(name));
 
 			try {
-				root.addChild(FileSystemEntry.newDirectory(name));
+				root.addChild(new Directory(name));
 			} catch (final AssertionError ae) {
 				throw ae;
 			} catch (final Throwable t) {
@@ -178,10 +178,10 @@ public final class FileSystemTest {
 			}
 
 			for (int i = 0; i < 30; i++) {
-				root.addChild(FileSystemEntry.newDirectory(newUniqueName(50)));
+				root.addChild(new Directory(newUniqueName(50)));
 			}
 
-			root.addChild(FileSystemEntry.newDirectory("This is a very long name. File names can be longer than 255 characters and are Unicode-capable: \u041c\u0430\u043c\u0430 \u043c\u044b\u043b\u0430 \u0440\u0430\u043c\u0443 " + newUniqueName(255)));
+			root.addChild(new Directory("This is a very long name. File names can be longer than 255 characters and are Unicode-capable: \u041c\u0430\u043c\u0430 \u043c\u044b\u043b\u0430 \u0440\u0430\u043c\u0443 " + newUniqueName(255)));
 
 			/*
 			 * Re-read the root directory: make sure all values come from disk.
@@ -210,7 +210,7 @@ public final class FileSystemTest {
 			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(2 * fs.getBlockSize().getLength());
-			final FileSystemEntry child = FileSystemEntry.newDirectory(name);
+			final FileSystemEntry child = new Directory(name);
 			root.addChild(child);
 
 			/*
@@ -256,7 +256,7 @@ public final class FileSystemTest {
 						final String sha1sum = toHexString(digest);
 						System.out.println(sha1sum + ' ' + fileName);
 						sha1sums.put(fileName, sha1sum);
-						fs.getRoot().addChild(new FileSystemEntry(file));
+						fs.getRoot().addChild(new File(file));
 					}
 					return CONTINUE;
 				}
@@ -298,7 +298,7 @@ public final class FileSystemTest {
 		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-			fs.getRoot().addChild(new FileSystemEntry(file));
+			fs.getRoot().addChild(new File(file));
 
 			final FileSystemEntry root = fs.getRoot();
 			System.out.println(root);
@@ -361,7 +361,7 @@ public final class FileSystemTest {
 			@SuppressWarnings("null")
 			final Path p = createTempFile(null, ".javafs");
 			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-				fs.getRoot().addChild(new FileSystemEntry(file));
+				fs.getRoot().addChild(new File(file));
 
 				final FileSystemEntry root = fs.getRoot();
 				System.out.println(root);
@@ -397,7 +397,7 @@ public final class FileSystemTest {
 
 					final String fileName = file.getFileName().toString();
 					if (isRegularFile(file, NOFOLLOW_LINKS) && fileName.endsWith(".java")) {
-						fs.getRoot().addChild(new FileSystemEntry(file));
+						fs.getRoot().addChild(new File(file));
 					}
 					return CONTINUE;
 				}
@@ -482,7 +482,7 @@ public final class FileSystemTest {
 			@SuppressWarnings("null")
 			final Path p = createTempFile(null, ".javafs");
 			try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-				final FileSystemEntry symlinkEntry0 = new FileSystemEntry(link);
+				final FileSystemEntry symlinkEntry0 = new SymbolicLink(link);
 				/*
 				 * Read the target of a detached entry.
 				 */
@@ -533,7 +533,7 @@ public final class FileSystemTest {
 			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(50);
-			root.addChild(FileSystemEntry.newDirectory(name));
+			root.addChild(new Directory(name));
 
 			/*
 			 * Re-read the root directory: make sure all values come from disk.
@@ -551,7 +551,7 @@ public final class FileSystemTest {
 			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(2 * fs.getBlockSize().getLength());
-			root.addChild(FileSystemEntry.newDirectory(name));
+			root.addChild(new Directory(name));
 
 			/*
 			 * Re-read the root directory: make sure all values come from disk.

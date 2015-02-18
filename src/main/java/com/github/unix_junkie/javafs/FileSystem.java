@@ -93,7 +93,7 @@ public final class FileSystem implements AutoCloseable {
 		/*
 		 * Write root directory.
 		 */
-		final FileSystemEntry root = FileSystemEntry.newDirectory("");
+		final FileSystemEntry root = new Directory("");
 		final long rootDirectorySize = root.getDataSize();
 		assert rootDirectorySize == 0 : rootDirectorySize;
 

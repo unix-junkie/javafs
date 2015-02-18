@@ -47,7 +47,7 @@ import javax.annotation.Nullable;
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
-public final class FileSystemEntry {
+public abstract class FileSystemEntry {
 	@Nonnull
 	@SuppressWarnings("null")
 	private static final Logger LOGGER = Logger.getLogger(FileSystemEntry.class.getName());
@@ -121,7 +121,7 @@ public final class FileSystemEntry {
 	 */
 	private long firstBlockId = -1;
 
-	public FileSystemEntry(final Path source) throws IOException {
+	protected FileSystemEntry(final Path source) throws IOException {
 		final BasicFileAttributes attrs = readAttributes(source, BasicFileAttributes.class, NOFOLLOW_LINKS);
 		if (attrs.isOther()) {
 			throw new IllegalArgumentException(source + " is either a socket or a device");
@@ -166,23 +166,7 @@ public final class FileSystemEntry {
 		this.source = source;
 	}
 
-	public FileSystemEntry(final FileType type,
-			final PosixAttributes attributes,
-			final byte numberOfLinks,
-			final short uid,
-			final short gid,
-			final long size,
-			final Date creationTime,
-			final Date modificationTime,
-			final Date accessTime,
-			final String name) {
-		this(type, attributes, numberOfLinks, uid, gid, size,
-				new Date(creationTime.getTime()),
-				new Date(modificationTime.getTime()),
-				new Date(accessTime.getTime()), name, null);
-	}
-
-	private FileSystemEntry(final FileType type,
+	protected FileSystemEntry(final FileType type,
 			final PosixAttributes attributes,
 			final byte numberOfLinks,
 			final short uid,
@@ -199,19 +183,39 @@ public final class FileSystemEntry {
 		this.uid = uid;
 		this.gid = gid;
 		this.dataSize = dataSize;
-		this.creationTime = creationTime;
-		this.modificationTime = modificationTime;
-		this.accessTime = accessTime;
+		this.creationTime = new Date(creationTime.getTime());
+		this.modificationTime = new Date(modificationTime.getTime());
+		this.accessTime = new Date(accessTime.getTime());
 		this.name = validateName(name, type);
 		this.encodedName = encodedName;
 	}
 
-	public static FileSystemEntry newDirectory(final String name) {
-		final Date creationTime = new Date();
-		return new FileSystemEntry(DIRECTORY,
-				new PosixAttributes((short) 0755), (byte) 1,
-				(short) 0, (short) 0, 0L, creationTime,
-				creationTime, creationTime, name);
+	private static FileSystemEntry newInstance(final FileType type,
+			final PosixAttributes attributes,
+			final byte numberOfLinks,
+			final short uid,
+			final short gid,
+			final long size,
+			final Date creationTime,
+			final Date modificationTime,
+			final Date accessTime,
+			final String name,
+			@Nullable final ByteBuffer encodedName) {
+		switch (type) {
+		case DIRECTORY:
+			return new Directory(attributes, numberOfLinks, uid, gid, size,
+					creationTime, modificationTime, accessTime,
+					name, encodedName);
+		case FILE:
+			return new File(attributes, numberOfLinks, uid, gid, size,
+					creationTime, modificationTime, accessTime,
+					name, encodedName);
+		case SYMBOLIC_LINK:
+		default:
+			return new SymbolicLink(attributes, numberOfLinks, uid, gid, size,
+					creationTime, modificationTime, accessTime,
+					name, encodedName);
+		}
 	}
 
 	ByteBuffer getMetadata() throws IOException {
@@ -250,7 +254,7 @@ public final class FileSystemEntry {
 		@SuppressWarnings("null")
 		final String name = UTF_8.newDecoder().decode(encodedName).toString();
 
-		return new FileSystemEntry(type, attributes, numberOfLinks, uid,
+		return newInstance(type, attributes, numberOfLinks, uid,
 				gid, size, creationTime, modificationTime,
 				accessTime, name, encodedName);
 	}
