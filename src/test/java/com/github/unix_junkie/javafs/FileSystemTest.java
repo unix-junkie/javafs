@@ -148,7 +148,7 @@ public final class FileSystemTest {
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
 			final FileSystemEntry root = fs.getRoot();
-			assertEquals("Empty directory should have a zero size", 0, root.getSize());
+			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			System.out.println(root);
 			final String name = newUniqueName(50);
@@ -173,8 +173,8 @@ public final class FileSystemTest {
 			 */
 			final FileSystemEntry root2 = fs.getRoot();
 			System.out.println(root2);
-			assertNotEquals(0, root2.getSize());
-			assertEquals(root.getSize(), root2.getSize());
+			assertNotEquals(0, root2.getDataSize());
+			assertEquals(root.getDataSize(), root2.getDataSize());
 
 			final Set<FileSystemEntry> children = root2.list();
 			assertEquals(32, children.size());
@@ -232,7 +232,7 @@ public final class FileSystemTest {
 				System.out.println(child);
 				@Nonnull
 				@SuppressWarnings("null")
-				final ByteBuffer contents = ByteBuffer.allocate((int) child.getSize());
+				final ByteBuffer contents = ByteBuffer.allocate((int) child.getDataSize());
 				child.writeDataTo(contents);
 				contents.flip();
 				md.reset();
@@ -286,7 +286,7 @@ public final class FileSystemTest {
 			final long oldFileCount = fs.getFileCount();
 			final int oldRootChildrenCount = root.list().size();
 			final long oldFreeBlockCount = fs.getFreeBlockCount();
-			final long oldRootSize = root.getSize();
+			final long oldRootSize = root.getDataSize();
 
 			assertEquals(oldFileCount, oldRootChildrenCount + 1);
 
@@ -295,7 +295,7 @@ public final class FileSystemTest {
 			final long newFileCount = fs.getFileCount();
 			final int newRootChildrenCount = root.list().size();
 			final long newFreeBlockCount = fs.getFreeBlockCount();
-			final long newRootSize = root.getSize();
+			final long newRootSize = root.getDataSize();
 
 			assertEquals(newFileCount, newRootChildrenCount + 1);
 
@@ -400,7 +400,7 @@ public final class FileSystemTest {
 		final Path p0 = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p0, 1024L * 1024 - 1)) {
 			final FileSystemEntry root = fs.getRoot();
-			assertEquals("Empty directory should have a zero size", 0, root.getSize());
+			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(50);
 			root.addChild(FileSystemEntry.newDirectory(name));
@@ -418,7 +418,7 @@ public final class FileSystemTest {
 		final Path p1 = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p1, 1024L * 1024 - 1)) {
 			final FileSystemEntry root = fs.getRoot();
-			assertEquals("Empty directory should have a zero size", 0, root.getSize());
+			assertEquals("Empty directory should have a zero size", 0, root.getDataSize());
 
 			final String name = newUniqueName(2 * fs.getBlockSize().getLength());
 			root.addChild(FileSystemEntry.newDirectory(name));

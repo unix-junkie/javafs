@@ -32,7 +32,7 @@ public final class FileSystemEntryTest {
 		final FileSystemEntry link = new FileSystemEntry(SYMBOLIC_LINK, new PosixAttributes((short) 0777), (byte) 1, (short) 1021, (short) 1021, 11, new Date(), new Date(), new Date(), ".Xdefaults");
 		@Nonnull
 		@SuppressWarnings("null")
-		final ByteBuffer buffer0 = ByteBuffer.allocate(link.getMetadataLength());
+		final ByteBuffer buffer0 = ByteBuffer.allocate(link.getMetadataSize());
 		link.writeMetadataTo(buffer0);
 		buffer0.flip();
 		assertEquals(link.toString(), FileSystemEntry.readMetadataFrom(buffer0).toString());
@@ -40,7 +40,7 @@ public final class FileSystemEntryTest {
 		final FileSystemEntry file = new FileSystemEntry(FILE, new PosixAttributes((short) 0644), (byte) 1, (short) 1021, (short) 1021, 47, new Date(), new Date(), new Date(), ".Xresources");
 		@Nonnull
 		@SuppressWarnings("null")
-		final ByteBuffer buffer1 = ByteBuffer.allocate(file.getMetadataLength());
+		final ByteBuffer buffer1 = ByteBuffer.allocate(file.getMetadataSize());
 		file.writeMetadataTo(buffer1);
 		buffer1.flip();
 		assertEquals(file.toString(), FileSystemEntry.readMetadataFrom(buffer1).toString());
@@ -48,7 +48,7 @@ public final class FileSystemEntryTest {
 		final FileSystemEntry directory = new FileSystemEntry(DIRECTORY, new PosixAttributes((short) 01777), (byte) 1, (short) 0, (short) 0, 4096, new Date(), new Date(), new Date(), "tmp");
 		@Nonnull
 		@SuppressWarnings("null")
-		final ByteBuffer buffer2 = ByteBuffer.allocate(directory.getMetadataLength());
+		final ByteBuffer buffer2 = ByteBuffer.allocate(directory.getMetadataSize());
 		directory.writeMetadataTo(buffer2);
 		buffer2.flip();
 		assertEquals(directory.toString(), FileSystemEntry.readMetadataFrom(buffer2).toString());

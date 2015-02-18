@@ -87,7 +87,7 @@ public final class FileSystemEntry {
 	 * If a child entry is added to or removed from a directory, its size
 	 * gets updated.
 	 */
-	private long size;
+	private long dataSize;
 
 	@Nonnull
 	private final Date creationTime;
@@ -140,7 +140,7 @@ public final class FileSystemEntry {
 		final long reportedSize = attrs.size();
 		switch (this.type) {
 		case DIRECTORY:
-			this.size = 0;
+			this.dataSize = 0;
 			break;
 		case SYMBOLIC_LINK:
 			final String targetPath = readSymbolicLink(source).toString();
@@ -149,11 +149,11 @@ public final class FileSystemEntry {
 			assert reportedSize == 0 || reportedSize == targetPathLength : format("For %s: reported size = %d; target path length = %d", targetPath,
 					Long.valueOf(reportedSize),
 					Integer.valueOf(targetPathLength));
-			this.size = reportedSize != 0 ? reportedSize : targetPathLength;
+			this.dataSize = reportedSize != 0 ? reportedSize : targetPathLength;
 			break;
 		case FILE:
 		default:
-			this.size = reportedSize;
+			this.dataSize = reportedSize;
 		}
 		this.creationTime = new Date(attrs.creationTime().toMillis());
 		this.modificationTime = new Date(attrs.lastModifiedTime().toMillis());
@@ -187,7 +187,7 @@ public final class FileSystemEntry {
 			final byte numberOfLinks,
 			final short uid,
 			final short gid,
-			final long size,
+			final long dataSize,
 			final Date creationTime,
 			final Date modificationTime,
 			final Date accessTime,
@@ -198,7 +198,7 @@ public final class FileSystemEntry {
 		this.numberOfLinks = numberOfLinks;
 		this.uid = uid;
 		this.gid = gid;
-		this.size = size;
+		this.dataSize = dataSize;
 		this.creationTime = creationTime;
 		this.modificationTime = modificationTime;
 		this.accessTime = accessTime;
@@ -217,7 +217,7 @@ public final class FileSystemEntry {
 	ByteBuffer getMetadata() throws IOException {
 		@Nonnull
 		@SuppressWarnings("null")
-		final ByteBuffer metadata = ByteBuffer.allocate(this.getMetadataLength());
+		final ByteBuffer metadata = ByteBuffer.allocate(this.getMetadataSize());
 		this.writeMetadataTo(metadata);
 		metadata.flip();
 		return metadata;
@@ -262,13 +262,13 @@ public final class FileSystemEntry {
 		 */
 		final int oldPosition = destination.position();
 
-		destination.putInt(this.getMetadataLength());
+		destination.putInt(this.getMetadataSize());
 		final short typeAndAttributes = (short) ((short) (this.type.ordinal() << 12) | this.attributes.getValue());
 		destination.putShort(typeAndAttributes);
 		destination.put(this.numberOfLinks);
 		destination.putShort(this.uid);
 		destination.putShort(this.gid);
-		destination.putLong(this.size);
+		destination.putLong(this.dataSize);
 		destination.putLong(this.creationTime.getTime());
 		destination.putLong(this.modificationTime.getTime());
 		destination.putLong(this.accessTime.getTime());
@@ -295,7 +295,7 @@ public final class FileSystemEntry {
 		this.requireNotDetached();
 
 		final List<MappedByteBuffer> blocks = this.fileSystem.mapBlocks(this.firstBlockId);
-		final int remainder = (int) (this.size % this.fileSystem.getBlockSize().getLength());
+		final int remainder = (int) (this.dataSize % this.fileSystem.getBlockSize().getLength());
 		if (remainder != 0) {
 			blocks.get(blocks.size() - 1).limit(remainder);
 		}
@@ -309,8 +309,8 @@ public final class FileSystemEntry {
 	 *         to store the entry). For newly created directories w/o
 	 *         children is 0.
 	 */
-	public long getSize() {
-		return this.size;
+	public long getDataSize() {
+		return this.dataSize;
 	}
 
 	public String getName() {
@@ -322,7 +322,7 @@ public final class FileSystemEntry {
 	 *         data area (or boot sector for the root directory).
 	 * @throws IOException if an I/O error occurs.
 	 */
-	int getMetadataLength() throws IOException {
+	int getMetadataSize() throws IOException {
 		return NAME_OFFSET + this.getEncodedName().limit();
 	}
 
@@ -355,11 +355,11 @@ public final class FileSystemEntry {
 		 * Find out whether parent directory needs to grow
 		 * (e. g. file names longer than block size)
 		 */
-		final int sizeIncrement = this.fileSystem.getBlockAddressSize() + child.getMetadataLength();
+		final int sizeIncrement = this.fileSystem.getBlockAddressSize() + child.getMetadataSize();
 		final long oldBlockCount = this.getBlockCount();
 		LOGGER.finest(format("Parent directory (%d block(s)) will grow for %d byte(s)", Long.valueOf(oldBlockCount), Integer.valueOf(sizeIncrement)));
 		final int blockSize = this.fileSystem.getBlockSize().getLength();
-		final long newBlockCount = FileUtilities.getBlockCount(this.size + sizeIncrement, blockSize);
+		final long newBlockCount = FileUtilities.getBlockCount(this.dataSize + sizeIncrement, blockSize);
 		final boolean growthRequired = newBlockCount != oldBlockCount;
 		if (growthRequired) {
 			/*
@@ -369,7 +369,7 @@ public final class FileSystemEntry {
 			LOGGER.finest(format("Parent directory will span %d block(s)", Long.valueOf(newBlockCount)));
 			this.fileSystem.growInode(this.firstBlockId, newBlockCount - oldBlockCount);
 		}
-		final long childBlockCount = FileUtilities.getBlockCount(child.size, blockSize);
+		final long childBlockCount = FileUtilities.getBlockCount(child.dataSize, blockSize);
 
 		/*
 		 * Check for free space.
@@ -428,7 +428,7 @@ public final class FileSystemEntry {
 			final long blockCount = this.fileSystem.getBlockCount(this.firstBlockId);
 			assert blockCount > 1 : blockCount;
 
-			this.fileSystem.writeTo(this.firstBlockId, child.getMetadata(), this.size);
+			this.fileSystem.writeTo(this.firstBlockId, child.getMetadata(), this.dataSize);
 		} else {
 			/*
 			 * Get the last (incomplete) block, set its position and write.
@@ -438,8 +438,8 @@ public final class FileSystemEntry {
 			 */
 			final long lastBlockId = this.fileSystem.getLastBlockId(this.firstBlockId);
 			final MappedByteBuffer lastBlock = this.fileSystem.mapBlock(lastBlockId);
-			final int position = (int) this.size % this.fileSystem.getBlockSize().getLength();
-			assert this.size == 0 ^ position != 0;
+			final int position = (int) this.dataSize % this.fileSystem.getBlockSize().getLength();
+			assert this.dataSize == 0 ^ position != 0;
 			lastBlock.position(position);
 			this.fileSystem.writeInode(childInode, lastBlock);
 			child.writeMetadataTo(lastBlock);
@@ -449,9 +449,9 @@ public final class FileSystemEntry {
 		 * Parent directory size has changed.
 		 * Record the change in the parent's parent (or boot sector for the root directory).
 		 */
-		this.size += sizeIncrement;
+		this.dataSize += sizeIncrement;
 		if (this.isRootDirectory()) {
-			this.fileSystem.setRootDirectorySize(this.size);
+			this.fileSystem.setRootDirectorySize(this.dataSize);
 		} else {
 			// XXX: Implement for directories other than the root one.
 			throw new UnsupportedOperationException("Parent (..) links in directories are not stored yet.");
@@ -477,7 +477,7 @@ public final class FileSystemEntry {
 		assert matchingChildren.size() == 1;
 		final FileSystemEntry matchingChild = matchingChildren.iterator().next();
 
-		final int sizeDecrement = this.fileSystem.getBlockAddressSize() + matchingChild.getMetadataLength();
+		final int sizeDecrement = this.fileSystem.getBlockAddressSize() + matchingChild.getMetadataSize();
 
 		this.fileSystem.freeBlocks(matchingChild.firstBlockId);
 		matchingChild.setFileSystem(null);
@@ -493,7 +493,7 @@ public final class FileSystemEntry {
 		 */
 		@Nonnull
 		@SuppressWarnings("null")
-		final ByteBuffer metadata = ByteBuffer.allocate((int) this.size - sizeDecrement);
+		final ByteBuffer metadata = ByteBuffer.allocate((int) this.dataSize - sizeDecrement);
 		for (final FileSystemEntry remainingChild : children) {
 			this.fileSystem.writeInode(remainingChild.firstBlockId, metadata);
 			remainingChild.writeMetadataTo(metadata);
@@ -506,9 +506,9 @@ public final class FileSystemEntry {
 		 * Parent directory size has changed.
 		 * Record the change in the parent's parent (or boot sector for the root directory).
 		 */
-		this.size -= sizeDecrement;
+		this.dataSize -= sizeDecrement;
 		if (this.isRootDirectory()) {
-			this.fileSystem.setRootDirectorySize(this.size);
+			this.fileSystem.setRootDirectorySize(this.dataSize);
 		} else {
 			// XXX: Implement for directories other than the root one.
 			throw new UnsupportedOperationException("Parent (..) links in directories are not stored yet.");
@@ -524,7 +524,7 @@ public final class FileSystemEntry {
 		this.requireNotDetached();
 
 		final int blockSize = this.fileSystem.getBlockSize().getLength();
-		return FileUtilities.getBlockCount(this.size, blockSize);
+		return FileUtilities.getBlockCount(this.dataSize, blockSize);
 	}
 
 	public Set<FileSystemEntry> list() throws IOException {
@@ -533,7 +533,7 @@ public final class FileSystemEntry {
 		}
 		this.requireNotDetached();
 
-		if (this.size == 0) {
+		if (this.dataSize == 0) {
 			@Nonnull
 			@SuppressWarnings("null")
 			final Set<FileSystemEntry> emptySet = emptySet();
@@ -550,19 +550,19 @@ public final class FileSystemEntry {
 			final MappedByteBuffer block = blocks.iterator().next();
 
 			long bytesRead = 0L;
-			while (bytesRead < this.size) {
+			while (bytesRead < this.dataSize) {
 				final long inode = this.fileSystem.readInode(block);
 				bytesRead += this.fileSystem.getBlockAddressSize();
 
 				final FileSystemEntry child = readMetadataFrom(block);
-				bytesRead += child.getMetadataLength();
+				bytesRead += child.getMetadataSize();
 
 				child.setFileSystem(this.fileSystem);
 				child.setFirstBlockId(inode);
 				children.add(child);
 			}
 
-			assert bytesRead == this.size : bytesRead;
+			assert bytesRead == this.dataSize : bytesRead;
 		} else {
 			// XXX: Implement for directories spanning more than one block
 			LOGGER.severe(format("Unable to deal with %d blocks while growing a directory", Integer.valueOf(blockCount)));
@@ -597,7 +597,7 @@ public final class FileSystemEntry {
 		 */
 		@Nonnull
 		@SuppressWarnings("null")
-		final ByteBuffer contents = ByteBuffer.allocate((int) min(this.size, Integer.MAX_VALUE));
+		final ByteBuffer contents = ByteBuffer.allocate((int) min(this.dataSize, Integer.MAX_VALUE));
 		this.writeDataTo(contents);
 		contents.flip();
 		return get(UTF_8.newDecoder().decode(contents).toString());
@@ -618,7 +618,7 @@ public final class FileSystemEntry {
 		builder.append(this.numberOfLinks).append(' ');
 		builder.append(uidToString(this.uid)).append(' ');
 		builder.append(gidToString(this.gid)).append(' ');
-		builder.append(this.size).append(' ');
+		builder.append(this.dataSize).append(' ');
 		builder.append(dateFormat.format(this.modificationTime)).append(' ');
 		/*
 		 * Root directory has an empty name.
