@@ -21,19 +21,46 @@ import java.util.TreeSet;
 import javax.annotation.Nonnull;
 
 /**
+ * <p>{@code BlockSize} contains possible block sized this file system driver
+ * supports.</p>
+ *
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public enum BlockSize {
 	/*
 	 * Adhere to NTFS block to file system size relationship.
 	 */
+	/**
+	 * 512 B block; file systems up to 512 MB (legacy).
+	 */
 	B512(toBytes(512, B),	0,			toBytes(512, M),	"512B"),
+	/**
+	 * 1 kB block; file systems from 512 MB up to 1 GB (legacy).
+	 */
 	K1(toBytes(1, K),	toBytes(512, M),	toBytes(1, G),		"1k"),
+	/**
+	 * 2 kB block; file systems from 1GB up to 2 GB (legacy).
+	 */
 	K2(toBytes(2, K),	toBytes(1, G),		toBytes(2, G),		"2k"),
+	/**
+	 * 4 kB block; file systems up to 16 TB.
+	 */
 	K4(toBytes(4, K),	0,			toBytes(16, T),		"4k"),
+	/**
+	 * 8 kB block; file systems from 16 TB up to 32 TB.
+	 */
 	K8(toBytes(8, K),	toBytes(16, T),		toBytes(32, T),		"8k"),
+	/**
+	 * 16 kB block; file systems from 32 TB up to 64 TB.
+	 */
 	K16(toBytes(16, K),	toBytes(32, T),		toBytes(64, T),		"16k"),
+	/**
+	 * 32 kB block; file systems from 64 TB to 128 TB.
+	 */
 	K32(toBytes(32, K),	toBytes(64, T),		toBytes(128, T),	"32k"),
+	/**
+	 * 64 kB block; file systems from 128 TB to 8 EB.
+	 */
 	K64(toBytes(64, K),	toBytes(128, T),	Long.MAX_VALUE,		"64k"),
 	;
 
@@ -62,18 +89,32 @@ public enum BlockSize {
 		this.description = description;
 	}
 
+	/**
+	 * @return this block size, in bytes.
+	 */
 	public int getLength() {
 		return this.length;
 	}
 
+	/**
+	 * @return the minimum file system length which supports this block size,
+	 *         in bytes.
+	 */
 	public long getMinFsLength() {
 		return this.minFsLength;
 	}
 
+	/**
+	 * @return the maximum file system length which supports this block size,
+	 *         in bytes.
+	 */
 	public long getMaxFsLength() {
 		return this.maxFsLength;
 	}
 
+	/**
+	 * @return the human-readable form of this block size.
+	 */
 	public String getDescription() {
 		return this.description;
 	}
@@ -126,5 +167,14 @@ public enum BlockSize {
 		final BlockSize maximum = supportedBlockSizes.last();
 		assert maximum != null;
 		return maximum;
+	}
+
+	public static BlockSize valueOf(final int length) {
+		for (final BlockSize blockSize : values()) {
+			if (blockSize.getLength() == length) {
+				return blockSize;
+			}
+		}
+		throw new IllegalArgumentException(format("Unsupported block size: %d", Integer.valueOf(length)));
 	}
 }

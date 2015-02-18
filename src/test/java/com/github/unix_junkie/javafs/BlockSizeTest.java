@@ -31,7 +31,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class BlockSizeTest {
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testFsLength() {
 		assertEquals(BlockSize.getMinimum().getLength(), B512.getMinFsLength());
 		assertEquals(toBytes(512, M) - 1, B512.getMaxFsLength());
@@ -59,7 +59,7 @@ public final class BlockSizeTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testSupportedBlockSizes() {
 		assertArrayEquals(new BlockSize[] {B512, K4}, getSupportedBlockSizes(toBytes(512, M) - 1).toArray());
 		assertArrayEquals(new BlockSize[] {K1, K4}, getSupportedBlockSizes(toBytes(512, M)).toArray());
@@ -74,7 +74,7 @@ public final class BlockSizeTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testGuessBlockSizes() {
 		assertEquals(K4, guessBlockSize(toBytes(512, M) - 1));
 		assertEquals(K4, guessBlockSize(toBytes(512, M)));

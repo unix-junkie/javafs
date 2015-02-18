@@ -26,7 +26,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class PosixAttributesTest {
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testToString() {
 		assertEquals("---------", new PosixAttributes(0).toString());
 		assertEquals("rw-------", new PosixAttributes(0600).toString());
@@ -41,7 +41,7 @@ public final class PosixAttributesTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testMasking() {
 		assertEquals(0600, new PosixAttributes(0100600).getValue());
 		assertEquals(0600, new PosixAttributes(070600).getValue());
@@ -53,7 +53,7 @@ public final class PosixAttributesTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testFileAttributes() throws IOException {
 		assumeFalse("On Windows, files are executable by default", getProperty("os.name").startsWith("Windows"));
 		@Nonnull
@@ -71,7 +71,7 @@ public final class PosixAttributesTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testDirectoryAttributes() throws IOException {
 		@Nonnull
 		@SuppressWarnings("null")

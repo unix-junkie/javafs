@@ -27,7 +27,7 @@ import javax.annotation.Nonnull;
 /**
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
-public final class Main {
+abstract class Main {
 	static {
 		try {
 			LogManager.getLogManager().readConfiguration(Main.class.getResourceAsStream("/logging.properties"));
@@ -44,6 +44,10 @@ public final class Main {
 	private static final String COMMANDS[] = {
 		"mkfs",
 	};
+
+	private Main() {
+		assert false;
+	}
 
 	private static int mkfs(final String ... args) throws IOException {
 		if (args.length == 1 && args[0].equals("help")) {

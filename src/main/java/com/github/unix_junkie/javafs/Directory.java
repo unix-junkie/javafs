@@ -22,6 +22,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
+ * <p>File system entry which corresponds to a directory.</p>
+ *
  * @author Andrew ``Bass'' Shcheglov &lt;mailto:andrewbass@gmail.com&gt;
  */
 public final class Directory extends FileSystemEntry {
@@ -80,6 +82,15 @@ public final class Directory extends FileSystemEntry {
 				creationTime, creationTime, name);
 	}
 
+	/**
+	 * <p>Adds a child entry to this directory. The child entry data is
+	 * written to the local file system.</p>
+	 *
+	 * @param child the child entry to add.
+	 * @throws IOException if this directory already contains an entry with
+	 *         the same name, there's not enough free space on the file system,
+	 *         or an I/O error occurs.
+	 */
 	public void addChild(final FileSystemEntry child) throws IOException {
 		this.requireNotDetached();
 		if (child instanceof Directory && ((Directory) child).isRootDirectory()) {
@@ -192,6 +203,14 @@ public final class Directory extends FileSystemEntry {
 		child.source = null;
 	}
 
+	/**
+	 * <p>Removes (unlinks) the child entry denoted by {@code child} from
+	 * this directory.</p>
+	 *
+	 * @param child the name of the child entry to remove. 
+	 * @throws IOException if this directory doesn't contain an entry named
+	 *         {@code child}, or an I/O error occurs.
+	 */
 	public void unlink(final String child) throws IOException {
 		this.requireNotDetached();
 
@@ -247,6 +266,12 @@ public final class Directory extends FileSystemEntry {
 		return this.isRootDirectory() ? "/" : this.name;
 	}
 
+	/**
+	 * <p>Lists the contents of this directory.</p>
+	 *
+	 * @return the list of entries this directory contains.
+	 * @throws IOException if an I/O error occurs.
+	 */
 	public Set<FileSystemEntry> list() throws IOException {
 		this.requireNotDetached();
 

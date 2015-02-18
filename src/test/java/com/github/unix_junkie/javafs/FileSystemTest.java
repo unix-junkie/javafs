@@ -80,12 +80,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class FileSystemTest {
 	@BeforeClass
+	@SuppressWarnings("javadoc")
 	public static void oneTimeSetUp() throws IOException {
 		LogManager.getLogManager().readConfiguration(Main.class.getResourceAsStream("/logging.properties"));
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testGuessBlockSize() {
 		try {
 			guessBlockSize(-1L);
@@ -121,7 +122,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testBlockAddressSize() {
 		assertEquals(1, getBlockAddressSize(1));
 		assertEquals(1, getBlockAddressSize(0xFF));
@@ -156,7 +157,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testAddDirectory() throws IOException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -200,7 +201,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testDirectoryGrowth() throws IOException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -225,15 +226,16 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testAddReadFile() throws IOException, NoSuchAlgorithmException {
+		final Map<String, String> sha1sums = new LinkedHashMap<>();
+
+		final MessageDigest md = MessageDigest.getInstance("SHA1");
+
 		@Nonnull
 		@SuppressWarnings("null")
 		final Path p = createTempFile(null, ".javafs");
 		try (final FileSystem fs = FileSystem.create(p, 1024L * 1024 - 1)) {
-			final Map<String, String> sha1sums = new LinkedHashMap<>();
-
-			final MessageDigest md = MessageDigest.getInstance("SHA1");
 			walkFileTree(get(getProperty("user.dir", ".")), new SimpleFileVisitor<Path>() {
 				@Override
 				public FileVisitResult visitFile(@Nullable final Path file,
@@ -261,7 +263,12 @@ public final class FileSystemTest {
 					return CONTINUE;
 				}
 			});
+		}
 
+		/*
+		 * Re-mount the file system.
+		 */
+		try (final FileSystem fs = FileSystem.mount(p)) {
 			final Directory root = fs.getRoot();
 			System.out.println(root);
 			final Set<FileSystemEntry> children = root.list();
@@ -282,7 +289,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testEmptyFile() throws NoSuchAlgorithmException, IOException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -312,7 +319,7 @@ public final class FileSystemTest {
 
 	@Ignore("Not yet implemented")
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testLargeFile() throws IOException, NoSuchAlgorithmException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -377,7 +384,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testUnlinkFile() throws IOException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -437,7 +444,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testFileSymlinkSupport() throws IOException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -446,7 +453,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testDirectorySymlinkSupport() throws IOException {
 		@Nonnull
 		@SuppressWarnings("null")
@@ -517,7 +524,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testBlockCount() throws IOException {
 		final long blockSize = 16;
 		assertEquals(1, getBlockCount(0, blockSize));
@@ -563,7 +570,7 @@ public final class FileSystemTest {
 	}
 
 	@Test
-	@SuppressWarnings("static-method")
+	@SuppressWarnings({ "static-method", "javadoc" })
 	public void testWriteTo() throws CharacterCodingException {
 		final ByteBuffer entry0 = US_ASCII.newEncoder().encode(CharBuffer.wrap("Hello, World!"));
 		final ByteBuffer entry1 = US_ASCII.newEncoder().encode(CharBuffer.wrap("A quick brown fox jumps over a lazy dog."));
