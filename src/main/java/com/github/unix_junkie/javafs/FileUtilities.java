@@ -163,12 +163,12 @@ public abstract class FileUtilities {
 
 	/**
 	 * <p>Returns how many blocks of size {@code blockSize} will be required
-	 * to store data of length {@code dataLength.</p>
+	 * to store data of length {@code dataLength}.</p>
 	 *
 	 * @param dataLength the length of the data chunk.
 	 * @param blockSize the block size.
 	 * @return how many blocks of size {@code blockSize} will be required to
-	 *         store data of length {@code dataLength.
+	 *         store data of length {@code dataLength}.
 	 */
 	static long getBlockCount(final long dataLength, final long blockSize) {
 		if (blockSize <= 0) {
