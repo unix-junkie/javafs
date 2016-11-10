@@ -1,6 +1,7 @@
 JavaFS
 ======
 [![Build Status](https://api.travis-ci.org/unix-junkie/javafs.png?branch=master)](https://travis-ci.org/unix-junkie/javafs)
+[![codecov.io](http://codecov.io/github/unix-junkie/javafs/coverage.svg?branch=master)](http://codecov.io/github/unix-junkie/javafs?branch=master)
 
 If filesystem is 1M large or even larger, 2 bytes per inode will be used to
 store the inode address. For testing purposes, it is conveninent to have
